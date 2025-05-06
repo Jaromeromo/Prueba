@@ -1,0 +1,155 @@
+﻿<!-- Contenedor superior del menú de navegación -->
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">FrontBlazor</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+<!-- Contenedor principal del menú de navegación -->
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <!-- Home -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <!-- Counter -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+
+        <!-- Weather -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+
+        <!-- Título para separar las secciones -->
+        <div class="nav-title px-3 py-2 mt-2 mb-1 bg-light text-dark">
+            <strong>Tablas Sin Claves Foráneas</strong>
+        </div>
+
+        <!-- Opciones del sistema -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="usuarios">
+                <span class="bi bi-person-fill" aria-hidden="true"></span> Usuarios
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="secciones">
+                <span class="bi bi-folder-fill" aria-hidden="true"></span> Secciones
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="subsecciones">
+                <span class="bi bi-folder2-open" aria-hidden="true"></span> Subsecciones
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="fuentes">
+                <span class="bi bi-lightbulb-fill" aria-hidden="true"></span> Fuentes
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="unidadmedicion">
+                <span class="bi bi-rulers" aria-hidden="true"></span> Unidades de Medición
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="tipoindicador">
+                <span class="bi bi-graph-up" aria-hidden="true"></span> Tipo de Indicador
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="represenvisuals">
+                <span class="bi bi-bar-chart-fill" aria-hidden="true"></span> Representaciones Visuales
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="roles">
+                <span class="bi bi-person-badge-fill" aria-hidden="true"></span> Roles
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="sentidos">
+                <span class="bi bi-compass-fill" aria-hidden="true"></span> Sentido
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="tipoactor">
+                <span class="bi bi-people-fill" aria-hidden="true"></span> Tipo de Actor
+            </NavLink>
+        </div>
+
+        <!-- Título para tablas con claves foráneas -->
+        <div class="nav-title px-3 py-2 mt-3 mb-1 bg-light text-dark">
+            <strong>Tablas Con Claves Foráneas</strong>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="actor">
+                <span class="bi bi-person-vcard-fill" aria-hidden="true"></span> Actores
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="responsablesporindicador">
+                <span class="bi bi-people-fill" aria-hidden="true"></span> Responsables por Indicador
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="represenvisualporindicador">
+                <span class="bi bi-bar-chart-line-fill" aria-hidden="true"></span> Representación Visual por Indicador
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="resultadoindicador">
+                <span class="bi bi-clipboard2-data-fill" aria-hidden="true"></span> Resultado Indicador
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="variable">
+                <span class="bi bi-input-cursor" aria-hidden="true"></span> Variables
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="variablesporindicador">
+                <span class="bi bi-calculator-fill" aria-hidden="true"></span> Variables por Indicador
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="fuentesporindicador">
+                <span class="bi bi-database-fill" aria-hidden="true"></span> Fuentes por Indicador
+            </NavLink>
+        </div>
+
+    </nav>
+</div>
+
+<!-- Código C# -->
+@code {
+    private bool collapseNavMenu = true;
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+}

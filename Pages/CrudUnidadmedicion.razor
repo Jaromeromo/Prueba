@@ -1,0 +1,506 @@
+@page "/unidadmedicion"
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@using Services
+@inject ServicioEntidad servicioEntidad
+@inject NavigationManager navegacionManager
+
+<div class="container-xl">
+    <div class="table-responsive">
+        <div class="table-wrapper">
+            <div class="table-title">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h2>Administrar <b>Unidades de Medición</b></h2>
+                    </div>
+                    <div class="col-sm-6">
+                        <button class="btn btn-info btn-sm" @onclick="() => mostrarModalConsulta = true">
+                            <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
+                        </button>
+
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
+                            <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
+                        </button>
+
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModal">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="() => EditarUnidadMedicionSeleccionada()">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionado</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @if (cargando)
+            {
+                <p><em>Cargando...</em></p>
+            }
+            else if (unidadesMedicion == null || unidadesMedicion.Count == 0)
+            {
+                <p>No hay unidades de medición disponibles.</p>
+            }
+            else
+            {
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <span class="custom-checkbox">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
+                                    <label></label>
+                                </span>
+                            </th>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var unidad in unidadesMedicion)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="custom-checkbox">
+                                        <input type="checkbox" @bind="@unidadMedicionSeleccionada[unidad]">
+                                        <label></label>
+                                    </span>
+                                </td>
+                                <td>@ObtenerValor(unidad, "id")</td>
+                                <td>@ObtenerValor(unidad, "nombre")</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => EditarUnidadMedicion(unidad)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarUnidadMedicion(unidad)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="GuardarUnidadMedicion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Agregar Unidad de Medición</h4>
+                        <button type="button" class="close" @onclick="CerrarModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" @bind="nombreUnidadMedicion" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalConsulta)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Consultar Unidad de Medición</h4>
+                    <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID de la Unidad de Medición</label>
+                        <input type="text" class="form-control" @bind="idUnidadMedicionConsulta">
+                    </div>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarUnidadMedicion">Buscar</button>
+
+                    @if (unidadMedicionConsultada != null)
+                    {
+                        <hr>
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" value="@nombreUnidadMedicionConsulta" disabled>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalConsulta">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEditar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ActualizarUnidadMedicion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Editar Unidad de Medición</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="text" class="form-control" @bind="idUnidadMedicionEditar" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" @bind="nombreUnidadMedicionEditar" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarUnidadMedicion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Unidad de Medición</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar esta unidad de medición?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Unidades de Medición Seleccionadas</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar las unidades de medición seleccionadas?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Dictionary<string, object>> unidadesMedicion = new();
+    private Dictionary<Dictionary<string, object>, bool> unidadMedicionSeleccionada = new();
+    private bool cargando = true;
+    private string? errorMensaje = null;
+
+    private bool seleccionarTodos
+    {
+        get => _seleccionarTodos;
+        set
+        {
+            _seleccionarTodos = value;
+            foreach (var clave in unidadMedicionSeleccionada.Keys.ToList())
+            {
+                unidadMedicionSeleccionada[clave] = _seleccionarTodos;
+            }
+        }
+    }
+
+    private bool _seleccionarTodos = false;
+    private bool mostrarModal = false;
+    private bool mostrarModalConsulta = false;
+    private bool mostrarModalEditar = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalEliminarMultiples = false;
+    private string nombreUnidadMedicion = "";
+    private string idUnidadMedicionConsulta = "";
+    private Dictionary<string, object>? unidadMedicionConsultada = null;
+    private string nombreUnidadMedicionConsulta = "";
+    private Dictionary<string, object>? unidadMedicionParaEditar = null;
+    private string idUnidadMedicionEditar = "";
+    private string nombreUnidadMedicionEditar = "";
+    private Dictionary<string, object>? unidadMedicionParaEliminar = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUnidadesMedicion();
+    }
+
+    private async Task CargarUnidadesMedicion()
+    {
+        cargando = true;
+        errorMensaje = null;
+
+        try
+        {
+            var resultado = await servicioEntidad.ObtenerTodosAsync("proyecto", "unidadMedicion");
+            unidadesMedicion = resultado ?? new();
+            unidadMedicionSeleccionada = unidadesMedicion.ToDictionary(p => p, p => false);
+        }
+        catch (Exception ex)
+        {
+            errorMensaje = $"Error al cargar unidades de medición: {ex.Message}";
+            unidadesMedicion = new();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModal()
+    {
+        mostrarModal = true;
+        nombreUnidadMedicion = "";
+        StateHasChanged();
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        StateHasChanged();
+    }
+
+    private async Task GuardarUnidadMedicion()
+    {
+        if (string.IsNullOrEmpty(nombreUnidadMedicion))
+        {
+            errorMensaje = "El nombre de la unidad de medición es obligatorio.";
+            return;
+        }
+
+        var nuevaUnidadMedicion = new Dictionary<string, object> { { "nombre", nombreUnidadMedicion } };
+
+        bool resultado = await servicioEntidad.CrearAsync("proyecto", "unidadMedicion", nuevaUnidadMedicion);
+
+        if (resultado)
+        {
+            unidadesMedicion.Add(nuevaUnidadMedicion);
+            unidadMedicionSeleccionada[nuevaUnidadMedicion] = false;
+            CerrarModal();
+        }
+        else
+        {
+            errorMensaje = "Error al guardar la unidad de medición en la base de datos.";
+        }
+    }
+
+    private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
+    {
+        return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
+    }
+
+    private void EditarUnidadMedicion(Dictionary<string, object> unidadMedicion)
+    {
+        unidadMedicionParaEditar = unidadMedicion;
+        idUnidadMedicionEditar = ObtenerValor(unidadMedicion, "id");
+        nombreUnidadMedicionEditar = ObtenerValor(unidadMedicion, "nombre");
+        mostrarModalEditar = true;
+        StateHasChanged();
+    }
+
+ private async Task ActualizarUnidadMedicion()
+{
+    // Verificación de datos de entrada
+    if (unidadMedicionParaEditar == null || string.IsNullOrEmpty(nombreUnidadMedicionEditar))
+    {
+        errorMensaje = "El nombre de la unidad de medición es obligatorio.";
+        return;
+    }
+
+    // Eliminar el campo 'id' del diccionario para evitar actualizar la columna identity
+    unidadMedicionParaEditar.Remove("id");
+
+    // Actualizar solo el campo 'nombre' en el diccionario
+    unidadMedicionParaEditar["nombre"] = nombreUnidadMedicionEditar;
+
+    // Llamada al servicio de actualización
+    bool resultado = await servicioEntidad.ActualizarAsync(
+        "proyecto",               // Nombre del proyecto
+        "unidadMedicion",         // Nombre de la entidad en la base de datos
+        "id",                     // Nombre del campo clave primaria
+        idUnidadMedicionEditar,   // ID de la unidad de medición que estamos actualizando
+        unidadMedicionParaEditar  // Diccionario con los campos a actualizar
+    );
+
+    // Verificar si la actualización fue exitosa
+    if (resultado)
+    {
+        // Actualización exitosa, cerrar el modal de edición
+        CerrarModalEditar();
+    }
+    else
+    {
+        // En caso de error
+        errorMensaje = "Error al actualizar la unidad de medición en la base de datos.";
+    }
+}
+
+
+    private void EditarUnidadMedicionSeleccionada()
+    {
+        var seleccionado = unidadMedicionSeleccionada.FirstOrDefault(x => x.Value).Key;
+        if (seleccionado != null)
+        {
+            EditarUnidadMedicion(seleccionado);
+        }
+        else
+        {
+            errorMensaje = "Debe seleccionar una unidad de medición para editar.";
+        }
+    }
+
+    private void CerrarModalEditar()
+    {
+        mostrarModalEditar = false;
+        StateHasChanged();
+    }
+
+    private async Task ConsultarUnidadMedicion()
+    {
+        if (string.IsNullOrEmpty(idUnidadMedicionConsulta))
+        {
+            errorMensaje = "Debe ingresar un ID de unidad de medición.";
+            return;
+        }
+
+        var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "unidadMedicion", "id", idUnidadMedicionConsulta);
+
+        if (resultado != null)
+        {
+            unidadMedicionConsultada = resultado;
+            nombreUnidadMedicionConsulta = ObtenerValor(resultado, "nombre");
+        }
+        else
+        {
+            errorMensaje = "No se encontró la unidad de medición.";
+            unidadMedicionConsultada = null;
+            nombreUnidadMedicionConsulta = "";
+        }
+    }
+
+    private void CerrarModalConsulta()
+    {
+        mostrarModalConsulta = false;
+        idUnidadMedicionConsulta = "";
+        unidadMedicionConsultada = null;
+        nombreUnidadMedicionConsulta = "";
+        StateHasChanged();
+    }
+
+    private void MostrarModalEliminar(Dictionary<string, object> unidadMedicion)
+    {
+        unidadMedicionParaEliminar = unidadMedicion;
+        mostrarModalEliminar = true;
+        StateHasChanged();
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        unidadMedicionParaEliminar = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarEliminarUnidadMedicion()
+    {
+        if (unidadMedicionParaEliminar != null)
+        {
+            string id = ObtenerValor(unidadMedicionParaEliminar, "id");
+
+            bool resultado = await servicioEntidad.EliminarAsync("proyecto", "unidadMedicion", "id", id);
+
+            if (resultado)
+            {
+                unidadesMedicion.Remove(unidadMedicionParaEliminar);
+                unidadMedicionSeleccionada.Remove(unidadMedicionParaEliminar);
+            }
+            else
+            {
+                errorMensaje = "Error al eliminar la unidad de medición.";
+            }
+
+            CerrarModalEliminar();
+        }
+    }
+
+    private async Task EliminarUnidadMedicion(Dictionary<string, object> unidadMedicion)
+    {
+        MostrarModalEliminar(unidadMedicion);
+    }
+
+    private void MostrarModalEliminarMultiples()
+    {
+        var haySeleccionados = unidadMedicionSeleccionada.Any(x => x.Value);
+        if (!haySeleccionados)
+        {
+            errorMensaje = "Debe seleccionar al menos una unidad de medición para eliminar.";
+            return;
+        }
+
+        mostrarModalEliminarMultiples = true;
+        StateHasChanged();
+    }
+
+    private void CerrarModalEliminarMultiples()
+    {
+        mostrarModalEliminarMultiples = false;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarEliminarSeleccionados()
+    {
+        var seleccionados = unidadMedicionSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
+
+        foreach (var unidadMedicion in seleccionados)
+        {
+            string id = ObtenerValor(unidadMedicion, "id");
+            bool resultado = await servicioEntidad.EliminarAsync("proyecto", "unidadMedicion", "id", id);
+
+            if (resultado)
+            {
+                unidadesMedicion.Remove(unidadMedicion);
+                unidadMedicionSeleccionada.Remove(unidadMedicion);
+            }
+        }
+
+        seleccionarTodos = false;
+        CerrarModalEliminarMultiples();
+    }
+}
+

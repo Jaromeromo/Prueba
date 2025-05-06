@@ -1,0 +1,370 @@
+@page "/actor"
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@using System.Text.Json
+@using Services
+@inject ServicioEntidad servicioEntidad
+@inject NavigationManager navegacionManager
+
+<PageTitle>Administración de Actores</PageTitle>
+
+<div class="container-xl">
+    <div class="table-responsive">
+        <div class="table-wrapper">
+            <div class="table-title">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h2>Administrar <b>Actores</b></h2>
+                    </div>
+                    <div class="col-sm-6">
+                        <button class="btn btn-info btn-sm" @onclick="() => mostrarModalConsulta = true">
+                            <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
+                        </button>
+
+                        <button class="btn btn-danger btn-sm" @onclick="EliminarSeleccionados">
+                            <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
+                        </button>
+
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModalCrearActor">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar Nuevo Actor</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @if (cargando)
+            {
+                <p><em>Cargando...</em></p>
+            }
+            else if (actores == null || actores.Count == 0)
+            {
+                <p>No hay actores disponibles.</p>
+            }
+            else
+            {
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <span class="custom-checkbox">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
+                                    <label></label>
+                                </span>
+                            </th>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Tipo Actor</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var actor in actores)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="custom-checkbox">
+                                        <input type="checkbox" @bind="@actorSeleccionado[actor]">
+                                        <label></label>
+                                    </span>
+                                </td>
+                                <td>@ObtenerValor(actor, "id")</td>
+                                <td>@ObtenerValor(actor, "nombre")</td>
+                                <td>@ObtenerNombreTipoActor(ObtenerValor(actor, "fkidtipoactor"))</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => AbrirModalEditarActor(actor)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarActor(actor)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@if (mostrarModalConsulta)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Consultar Actor</h4>
+                    <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID Actor</label>
+                        <input type="text" class="form-control" @bind="idActorConsulta">
+                    </div>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarActor">Buscar</button>
+
+                    @if (actorConsultado != null)
+                    {
+                        <hr />
+                        <h5>Detalles del Actor</h5>
+                        <dl class="row">
+                            <dt class="col-sm-4">ID:</dt>
+                            <dd class="col-sm-8">@ObtenerValor(actorConsultado, "id")</dd>
+                            
+                            <dt class="col-sm-4">Nombre:</dt>
+                            <dd class="col-sm-8">@ObtenerValor(actorConsultado, "nombre")</dd>
+                            
+                            <dt class="col-sm-4">Tipo Actor:</dt>
+                            <dd class="col-sm-8">@ObtenerNombreTipoActor(ObtenerValor(actorConsultado, "fkidtipoactor"))</dd>
+                        </dl>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalConsulta">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalCrear || mostrarModalEditar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="GuardarActor">
+                    <div class="modal-header">
+                        <h4 class="modal-title">@(mostrarModalEditar ? "Editar Actor" : "Nuevo Actor")</h4>
+                        <button type="button" class="close" @onclick="CerrarModales">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="text" class="form-control" @bind="idActor" @bind:event="oninput" 
+                                disabled="@mostrarModalEditar">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" @bind="nombreActor" @bind:event="oninput" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tipo de Actor</label>
+                            <select class="form-control" @bind="tipoActor">
+                                <option value="0">Seleccione un tipo de actor</option>
+                                @foreach (var tipo in tiposActor)
+                                {
+                                    <option value="@ObtenerValor(tipo, "id")">@ObtenerValor(tipo, "nombre")</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">@(mostrarModalEditar ? "Actualizar" : "Guardar")</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModales">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Dictionary<string, object>> actores = new();
+    private Dictionary<Dictionary<string, object>, bool> actorSeleccionado = new();
+    private List<Dictionary<string, object>> tiposActor = new();
+    private Dictionary<string, object> actorConsultado;
+
+    private bool cargando = true;
+    private bool mostrarModalConsulta = false;
+    private bool mostrarModalCrear = false;
+    private bool mostrarModalEditar = false;
+
+    private bool seleccionarTodos
+    {
+        get => _seleccionarTodos;
+        set
+        {
+            _seleccionarTodos = value;
+            foreach (var clave in actorSeleccionado.Keys.ToList())
+            {
+                actorSeleccionado[clave] = _seleccionarTodos;
+            }
+        }
+    }
+    private bool _seleccionarTodos = false;
+
+    private string idActor = "";
+    private string nombreActor = "";
+    private int tipoActor = 0;
+    private string idActorConsulta = "";
+    private string idActorOriginal = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarActores();
+        await CargarTiposActor();
+    }
+
+    private async Task CargarActores()
+    {
+        cargando = true;
+
+        try
+        {
+            actores = await servicioEntidad.ObtenerTodosAsync("proyecto", "actor") ?? new();
+            actorSeleccionado = actores.ToDictionary(a => a, a => false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar actores: {ex.Message}");
+            actores = new();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarTiposActor()
+    {
+        tiposActor = await servicioEntidad.ObtenerTodosAsync("proyecto", "tipoactor") ?? new();
+    }
+
+    private void EliminarSeleccionados()
+    {
+        var seleccionados = actorSeleccionado.Where(x => x.Value).Select(x => x.Key).ToList();
+        foreach (var a in seleccionados)
+        {
+            EliminarActor(a);
+        }
+        seleccionarTodos = false;
+    }
+
+    private async Task EliminarActor(Dictionary<string, object> actor)
+    {
+        string id = ObtenerValor(actor, "id");
+        
+        try
+        {
+            await servicioEntidad.EliminarAsync("proyecto", "actor","id", id);
+            actores.Remove(actor);
+            actorSeleccionado.Remove(actor);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar actor: {ex.Message}");
+        }
+    }
+
+    private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
+    {
+        return diccionario != null && diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
+    }
+
+    private string ObtenerNombreTipoActor(string idTipoActor)
+    {
+        if (string.IsNullOrEmpty(idTipoActor) || !int.TryParse(idTipoActor, out int id))
+            return "No especificado";
+
+        var tipo = tiposActor.FirstOrDefault(t => ObtenerValor(t, "id") == idTipoActor);
+        return tipo != null ? ObtenerValor(tipo, "nombre") : "Desconocido";
+    }
+
+    private void AbrirModalCrearActor()
+    {
+        mostrarModalCrear = true;
+        mostrarModalEditar = false;
+        idActor = "";
+        nombreActor = "";
+        tipoActor = 0;
+    }
+
+    private void AbrirModalEditarActor(Dictionary<string, object> actor)
+    {
+        mostrarModalEditar = true;
+        mostrarModalCrear = false;
+        idActor = ObtenerValor(actor, "id");
+        idActorOriginal = idActor;
+        nombreActor = ObtenerValor(actor, "nombre");
+        _ = int.TryParse(ObtenerValor(actor, "fkidtipoactor"), out int tipo);
+        tipoActor = tipo;
+    }
+
+    private void CerrarModales()
+    {
+        mostrarModalCrear = false;
+        mostrarModalEditar = false;
+        idActor = "";
+        nombreActor = "";
+        tipoActor = 0;
+        idActorOriginal = "";
+    }
+
+    private async Task GuardarActor()
+    {
+        if (string.IsNullOrEmpty(idActor) || string.IsNullOrEmpty(nombreActor) || tipoActor <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var parametros = new Dictionary<string, object>
+            {
+                { "id", idActor },
+                { "nombre", nombreActor },
+                { "fkidtipoactor", tipoActor }
+            };
+
+            if (mostrarModalEditar)
+            {
+                await servicioEntidad.ActualizarAsync("proyecto", "actor", idActorOriginal, "id", parametros);
+            }
+            else
+            {
+                await servicioEntidad.InsertarAsync("proyecto", "actor", parametros);
+            }
+
+            await CargarActores();
+            CerrarModales();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar actor: {ex.Message}");
+        }
+    }
+
+    private async Task ConsultarActor()
+    {
+        if (string.IsNullOrEmpty(idActorConsulta))
+        {
+            return;
+        }
+
+        try
+        {
+            var resultados = await servicioEntidad.ObtenerTodosAsync("proyecto", $"actor/id/{idActorConsulta}");
+            if (resultados != null && resultados.Count > 0)
+            {
+                actorConsultado = resultados[0];
+            }
+            else
+            {
+                actorConsultado = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar actor: {ex.Message}");
+        }
+    }
+
+    private void CerrarModalConsulta()
+    {
+        mostrarModalConsulta = false;
+        idActorConsulta = "";
+        actorConsultado = null;
+    }
+}

@@ -1,0 +1,505 @@
+@page "/subsecciones"
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@using Services
+@inject ServicioEntidad servicioEntidad
+@inject NavigationManager navegacionManager
+
+<div class="container-xl">
+    <div class="table-responsive">
+        <div class="table-wrapper">
+            <div class="table-title">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h2>Administrar <b>Subsecciones</b></h2>
+                    </div>
+                    <div class="col-sm-6">
+                        <button class="btn btn-info btn-sm" @onclick="() => mostrarModalConsulta = true">
+                            <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
+                        </button>
+
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
+                            <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
+                        </button>
+
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModal">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="() => EditarSubseccionSeleccionada()">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionada</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @if (cargando)
+            {
+                <p><em>Cargando...</em></p>
+            }
+            else if (subsecciones == null || subsecciones.Count == 0)
+            {
+                <p>No hay subsecciones disponibles.</p>
+            }
+            else
+            {
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <span class="custom-checkbox">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
+                                    <label></label>
+                                </span>
+                            </th>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var subseccion in subsecciones)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="custom-checkbox">
+                                        <input type="checkbox" @bind="@subseccionSeleccionada[subseccion]">
+                                        <label></label>
+                                    </span>
+                                </td>
+                                <td>@ObtenerValor(subseccion, "id")</td>
+                                <td>@ObtenerValor(subseccion, "nombre")</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => EditarSubseccion(subseccion)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarSubseccion(subseccion)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="GuardarSubseccion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Agregar Subsección</h4>
+                        <button type="button" class="close" @onclick="CerrarModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" @bind="nombreSubseccion" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalConsulta)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Consultar Subsección</h4>
+                    <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID de la Subsección</label>
+                        <input type="text" class="form-control" @bind="idSubseccionConsulta">
+                    </div>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarSubseccion">Buscar</button>
+
+                    @if (subseccionConsultada != null)
+                    {
+                        <hr>
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" value="@nombreSubseccionConsulta" disabled>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalConsulta">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEditar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ActualizarSubseccion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Editar Subsección</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="text" class="form-control" @bind="idSubseccionEditar" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" @bind="nombreSubseccionEditar" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSubseccion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Subsección</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar esta subsección?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Subsecciones Seleccionadas</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar las subsecciones seleccionadas?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Dictionary<string, object>> subsecciones = new();
+private Dictionary<Dictionary<string, object>, bool> subseccionSeleccionada = new();
+private bool cargando = true;
+private string? errorMensaje = null;
+
+private bool seleccionarTodos
+{
+    get => _seleccionarTodos;
+    set
+    {
+        _seleccionarTodos = value;
+        foreach (var clave in subseccionSeleccionada.Keys.ToList())
+        {
+            subseccionSeleccionada[clave] = _seleccionarTodos;
+        }
+    }
+}
+
+private bool _seleccionarTodos = false;
+private bool mostrarModal = false;
+private bool mostrarModalConsulta = false;
+private bool mostrarModalEditar = false;
+private bool mostrarModalEliminar = false;
+private bool mostrarModalEliminarMultiples = false;
+private string nombreSubseccion = "";
+private string idSubseccionConsulta = "";
+private Dictionary<string, object>? subseccionConsultada = null;
+private string nombreSubseccionConsulta = "";
+private Dictionary<string, object>? subseccionParaEditar = null;
+private string idSubseccionEditar = "";
+private string nombreSubseccionEditar = "";
+private Dictionary<string, object>? subseccionParaEliminar = null;
+
+protected override async Task OnInitializedAsync()
+{
+    await CargarSubsecciones();
+}
+
+private async Task CargarSubsecciones()
+{
+    cargando = true;
+    errorMensaje = null;
+
+    try
+    {
+        var resultado = await servicioEntidad.ObtenerTodosAsync("proyecto", "subseccion");
+        subsecciones = resultado ?? new();
+        subseccionSeleccionada = subsecciones.ToDictionary(p => p, p => false);
+    }
+    catch (Exception ex)
+    {
+        errorMensaje = $"Error al cargar subsecciones: {ex.Message}";
+        subsecciones = new();
+    }
+    finally
+    {
+        cargando = false;
+    }
+}
+
+private void AbrirModal()
+{
+    mostrarModal = true;
+    nombreSubseccion = "";
+    StateHasChanged();
+}
+
+private void CerrarModal()
+{
+    mostrarModal = false;
+    StateHasChanged();
+}
+
+private async Task GuardarSubseccion()
+{
+    if (string.IsNullOrEmpty(nombreSubseccion))
+    {
+        errorMensaje = "El nombre de la subsección es obligatorio.";
+        return;
+    }
+
+    var nuevaSubseccion = new Dictionary<string, object> { { "nombre", nombreSubseccion } };
+
+    bool resultado = await servicioEntidad.CrearAsync("proyecto", "subseccion", nuevaSubseccion);
+
+    if (resultado)
+    {
+        subsecciones.Add(nuevaSubseccion);
+        subseccionSeleccionada[nuevaSubseccion] = false;
+        CerrarModal();
+    }
+    else
+    {
+        errorMensaje = "Error al guardar la subsección en la base de datos.";
+    }
+}
+
+private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
+{
+    return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
+}
+
+private void EditarSubseccion(Dictionary<string, object> subseccion)
+{
+    subseccionParaEditar = subseccion;
+    idSubseccionEditar = ObtenerValor(subseccion, "id");
+    nombreSubseccionEditar = ObtenerValor(subseccion, "nombre");
+    mostrarModalEditar = true;
+    StateHasChanged();
+}
+
+private async Task ActualizarSubseccion()
+{
+    // Verificación de datos de entrada
+    if (subseccionParaEditar == null || string.IsNullOrEmpty(nombreSubseccionEditar))
+    {
+        errorMensaje = "El nombre de la subsección es obligatorio.";
+        return;
+    }
+
+    // Eliminar el campo 'id' del diccionario para evitar actualizar la columna identity
+    subseccionParaEditar.Remove("id");
+
+    // Actualizar solo los campos permitidos, en este caso, el 'nombre'
+    subseccionParaEditar["nombre"] = nombreSubseccionEditar; // Modificar el diccionario original
+
+    // Llamada al servicio de actualización
+    bool resultado = await servicioEntidad.ActualizarAsync(
+        "proyecto",          // Nombre del proyecto
+        "subseccion",        // Nombre de la entidad en la base de datos
+        "id",                // Nombre del campo clave primaria
+        idSubseccionEditar,  // ID de la subsección que estamos actualizando
+        subseccionParaEditar // Diccionario con los campos a actualizar
+    );
+
+    // Verificar si la actualización fue exitosa
+    if (resultado)
+    {
+        // Actualización exitosa, cerrar el modal de edición
+        CerrarModalEditar();
+    }
+    else
+    {
+        // En caso de error
+        errorMensaje = "Error al actualizar la subsección en la base de datos.";
+    }
+}
+
+
+private void EditarSubseccionSeleccionada()
+{
+    var seleccionado = subseccionSeleccionada.FirstOrDefault(x => x.Value).Key;
+    if (seleccionado != null)
+    {
+        EditarSubseccion(seleccionado);
+    }
+    else
+    {
+        errorMensaje = "Debe seleccionar una subsección para editar.";
+    }
+}
+
+private void CerrarModalEditar()
+{
+    mostrarModalEditar = false;
+    StateHasChanged();
+}
+
+private async Task ConsultarSubseccion()
+{
+    if (string.IsNullOrEmpty(idSubseccionConsulta))
+    {
+        errorMensaje = "Debe ingresar un ID de subsección.";
+        return;
+    }
+
+    var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "subseccion", "id", idSubseccionConsulta);
+
+    if (resultado != null)
+    {
+        subseccionConsultada = resultado;
+        nombreSubseccionConsulta = ObtenerValor(resultado, "nombre");
+    }
+    else
+    {
+        errorMensaje = "No se encontró la subsección.";
+        subseccionConsultada = null;
+        nombreSubseccionConsulta = "";
+    }
+}
+
+private void CerrarModalConsulta()
+{
+    mostrarModalConsulta = false;
+    idSubseccionConsulta = "";
+    subseccionConsultada = null;
+    nombreSubseccionConsulta = "";
+    StateHasChanged();
+}
+
+private void MostrarModalEliminar(Dictionary<string, object> subseccion)
+{
+    subseccionParaEliminar = subseccion;
+    mostrarModalEliminar = true;
+    StateHasChanged();
+}
+
+private void CerrarModalEliminar()
+{
+    mostrarModalEliminar = false;
+    subseccionParaEliminar = null;
+    StateHasChanged();
+}
+
+private async Task ConfirmarEliminarSubseccion()
+{
+    if (subseccionParaEliminar != null)
+    {
+        string id = ObtenerValor(subseccionParaEliminar, "id");
+
+        bool resultado = await servicioEntidad.EliminarAsync("proyecto", "subseccion", "id", id);
+
+        if (resultado)
+        {
+            subsecciones.Remove(subseccionParaEliminar);
+            subseccionSeleccionada.Remove(subseccionParaEliminar);
+        }
+        else
+        {
+            errorMensaje = "Error al eliminar la subsección.";
+        }
+
+        CerrarModalEliminar();
+    }
+}
+
+private async Task EliminarSubseccion(Dictionary<string, object> subseccion)
+{
+    MostrarModalEliminar(subseccion);
+}
+
+private void MostrarModalEliminarMultiples()
+{
+    var haySeleccionados = subseccionSeleccionada.Any(x => x.Value);
+    if (!haySeleccionados)
+    {
+        errorMensaje = "Debe seleccionar al menos una subsección para eliminar.";
+        return;
+    }
+
+    mostrarModalEliminarMultiples = true;
+    StateHasChanged();
+}
+
+private void CerrarModalEliminarMultiples()
+{
+    mostrarModalEliminarMultiples = false;
+    StateHasChanged();
+}
+
+private async Task ConfirmarEliminarSeleccionados()
+{
+    var seleccionados = subseccionSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
+
+    foreach (var subseccion in seleccionados)
+    {
+        string id = ObtenerValor(subseccion, "id");
+        bool resultado = await servicioEntidad.EliminarAsync("proyecto", "subseccion", "id", id);
+
+        if (resultado)
+        {
+            subsecciones.Remove(subseccion);
+            subseccionSeleccionada.Remove(subseccion);
+        }
+    }
+
+    seleccionarTodos = false;
+    CerrarModalEliminarMultiples();
+}
+}
