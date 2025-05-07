@@ -1,12 +1,9 @@
-@page "/responsablesporindicador"
+@page "/ResponsablesPorIndicador"
 @using System.Collections.Generic
 @using System.Threading.Tasks
-@using System.Text.Json
 @using Services
 @inject ServicioEntidad servicioEntidad
 @inject NavigationManager navegacionManager
-
-<PageTitle>Relación Responsable por Indicador</PageTitle>
 
 <div class="container-xl">
     <div class="table-responsive">
@@ -21,12 +18,16 @@
                             <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
                         </button>
 
-                        <button class="btn btn-danger btn-sm" @onclick="EliminarSeleccionadas">
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
                             <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
                         </button>
 
-                        <button class="btn btn-success btn-sm" @onclick="AbrirModalCrearRelacion">
-                            <i class="material-icons">&#xE147;</i> <span>Agregar Nueva Relación</span>
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModalGuardar">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="EditarResponsableSeleccionado">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionado</span>
                         </button>
                     </div>
                 </div>
@@ -36,9 +37,9 @@
             {
                 <p><em>Cargando...</em></p>
             }
-            else if (relaciones == null || relaciones.Count == 0)
+            else if (responsables == null || responsables.Count == 0)
             {
-                <p>No hay relaciones disponibles.</p>
+                <p>No hay Responsables por Indicador disponibles.</p>
             }
             else
             {
@@ -47,28 +48,38 @@
                         <tr>
                             <th>
                                 <span class="custom-checkbox">
-                                    <input type="checkbox" @bind="@seleccionarTodas">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
                                     <label></label>
                                 </span>
                             </th>
-                            <th>Id Indicador</th>
-                            <th>Id Responsable</th>
-                            <th>Fecha Asignación</th> <!-- Columna de fecha de asignación -->
+                            <th>ID Responsable</th>
+                            <th>ID Indicador</th>
+                            <th>Fecha Asignación</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var relacion in relaciones)
+                        @foreach (var responsable in responsables)
                         {
                             <tr>
                                 <td>
                                     <span class="custom-checkbox">
-                                        <input type="checkbox" @bind="@relacionSeleccionada[relacion]">
+                                        <input type="checkbox" @bind="@responsablesSeleccionados[responsable]">
                                         <label></label>
                                     </span>
                                 </td>
-                                <td>@ObtenerValor(relacion, "fkidindicador")</td>
-                                <td>@ObtenerValor(relacion, "fkidresponsable")</td>
-                                <td>@ObtenerValor(relacion, "fechaasignacion")</td> <!-- Mostrar fecha -->
+                                <td>@ObtenerValor(responsable, "fkidresponsable")</td>
+                                <td>@ObtenerValor(responsable, "fkidindicador")</td>
+                                <td>@ObtenerFechaFormateada(responsable, "fechaasignacion")</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => EditarResponsable(responsable)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarResponsable(responsable)"
+                                        @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -78,34 +89,72 @@
     </div>
 </div>
 
+@if (mostrarModalGuardar)
+{
+   <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form @onsubmit="GuardarResponsable">
+                <div class="modal-header">
+                    <h4 class="modal-title">Agregar Responsable por Indicador</h4>
+                    <button type="button" class="close" @onclick="CerrarModalGuardar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID Responsable</label>
+                        <input type="text" class="form-control" @bind="idResponsable" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Indicador</label>
+                        <input type="number" class="form-control" @bind="idIndicador" required>
+                    </div>
+                    @* La fecha se genera automáticamente con DEFAULT GETDATE() en la base de datos *@
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalGuardar">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
 @if (mostrarModalConsulta)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Consultar Relación</h4>
+                    <h4 class="modal-title">Consultar Responsable por Indicador</h4>
                     <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Id Indicador</label>
-                        <input type="number" class="form-control" @bind="idIndicadorConsulta">
+                        <label>ID Responsable</label>
+                        <input type="text" class="form-control" @bind="idResponsableConsultar">
                     </div>
-                    <button class="btn btn-primary mt-2" @onclick="ConsultarRelacion">Buscar</button>
+                    <div class="form-group">
+                        <label>ID Indicador</label>
+                        <input type="number" class="form-control" @bind="idIndicadorConsultar">
+                    </div>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarResponsable">Buscar</button>
 
-                    @if (relacionesConsultadas != null && relacionesConsultadas.Count > 0)
+                    @if (responsableConsultado != null)
                     {
-                        <hr />
-                        <h5>Responsables Asociados</h5>
-                        <ul class="list-group">
-                            @foreach (var r in relacionesConsultadas)
-                            {
-                                <li class="list-group-item">
-                                    Responsable ID: @ObtenerValor(r, "fkidresponsable") - Fecha Asignación: @ObtenerValor(r, "fechaasignacion")
-                                </li>
-                            }
-                        </ul>
+                        <hr>
+                        <div class="form-group">
+                            <label>ID Responsable</label>
+                            <input type="text" class="form-control" value="@idResponsableConsultar" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" value="@idIndicadorConsultar" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Asignación</label>
+                            <input type="text" class="form-control" value="@ObtenerFechaFormateada(responsableConsultado, "fechaasignacion")" disabled>
+                        </div>
                     }
                 </div>
                 <div class="modal-footer">
@@ -116,47 +165,30 @@
     </div>
 }
 
-@if (mostrarModalCrear)
+@if (mostrarModalEditar)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form @onsubmit="GuardarRelacion">
+                <form @onsubmit="ActualizarResponsable">
                     <div class="modal-header">
-                        <h4 class="modal-title">Nueva Relación</h4>
-                        <button type="button" class="close" @onclick="CerrarModalCrear">&times;</button>
+                        <h4 class="modal-title">Editar Responsable por Indicador</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Indicador</label>
-                            <select class="form-control" @bind="idIndicador">
-                                <option value="0">Seleccione un indicador</option>
-                                @foreach (var i in indicadores)
-                                {
-                                    <option value="@ObtenerValor(i, "id")">@ObtenerValor(i, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Responsable</label>
+                            <input type="text" class="form-control" @bind="idResponsableEditar" required>
                         </div>
-
                         <div class="form-group">
-                            <label>Responsable</label>
-                            <select class="form-control" @bind="idResponsable">
-                                <option value="0">Seleccione un responsable</option>
-                                @foreach (var r in responsables)
-                                {
-                                    <option value="@ObtenerValor(r, "id")">@ObtenerValor(r, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" @bind="idIndicadorEditar" required>
                         </div>
-
-                        <div class="form-group">
-                            <label>Fecha de Asignación</label>
-                            <input type="date" class="form-control" @bind="fechaAsignacion">
-                        </div>
+                        @* No se permite editar la fecha de asignación ya que se genera automáticamente *@
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Guardar Relación</button>
-                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalCrear">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
                     </div>
                 </form>
             </div>
@@ -164,43 +196,95 @@
     </div>
 }
 
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarResponsable">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Responsable por Indicador</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar este registro?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Responsables Seleccionados</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar los registros seleccionados?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
-    private List<Dictionary<string, object>> relaciones = new();
-    private Dictionary<Dictionary<string, object>, bool> relacionSeleccionada = new();
-    private List<Dictionary<string, object>> indicadores = new();
-    private List<Dictionary<string, object>> responsables = new(); // antes: representaciones
-    private List<Dictionary<string, object>> relacionesConsultadas = new();
-
+    private List<Dictionary<string, object>> responsables = new();
+    private Dictionary<Dictionary<string, object>, bool> responsablesSeleccionados = new();
     private bool cargando = true;
+    private bool mostrarModalGuardar = false;
     private bool mostrarModalConsulta = false;
-    private bool mostrarModalCrear = false;
+    private bool mostrarModalEditar = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalEliminarMultiples = false;
+    
+    private Dictionary<string, object> responsableAEliminar;
+    private Dictionary<string, object> responsableConsultado;
 
-    private bool seleccionarTodas
+    private string idResponsable;
+    private int idIndicador;
+    private string idResponsableConsultar;
+    private int idIndicadorConsultar;
+    private string idResponsableEditar;
+    private int idIndicadorEditar;
+    private string idResponsableOriginal;
+    private int idIndicadorOriginal;
+    private DateTime fechaAsignacion = DateTime.Now;
+
+    private bool seleccionarTodos
     {
-        get => _seleccionarTodas;
+        get => _seleccionarTodos;
         set
         {
-            _seleccionarTodas = value;
-            foreach (var clave in relacionSeleccionada.Keys.ToList())
+            _seleccionarTodos = value;
+            foreach (var responsable in responsables)
             {
-                relacionSeleccionada[clave] = _seleccionarTodas;
+                responsablesSeleccionados[responsable] = _seleccionarTodos;
             }
         }
     }
-    private bool _seleccionarTodas = false;
-
-    private int idIndicador;
-    private string idResponsable; // varchar
-    private int idIndicadorConsulta;
-    private DateTime fechaAsignacion = DateTime.Today;  // Fecha de asignación por defecto al día de hoy
+    private bool _seleccionarTodos = false;
 
     protected override async Task OnInitializedAsync()
     {
         await CargarRelaciones();
-        await CargarIndicadores();
-        await CargarRepresentaciones(); // mantiene el nombre aunque ahora carga responsables
     }
 
     private async Task CargarRelaciones()
@@ -209,13 +293,13 @@
 
         try
         {
-            relaciones = await servicioEntidad.ObtenerTodosAsync("proyecto", "responsablesporindicador") ?? new();
-            relacionSeleccionada = relaciones.ToDictionary(r => r, r => false);
+            responsables = await servicioEntidad.ObtenerTodosAsync("proyecto", "responsablesporindicador") ?? new();
+            responsablesSeleccionados = responsables.ToDictionary(r => r, r => false);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error al cargar relaciones: {ex.Message}");
-            relaciones = new();
+            responsables = new();
         }
         finally
         {
@@ -223,82 +307,245 @@
         }
     }
 
-    private async Task CargarIndicadores()
-    {
-        indicadores = await servicioEntidad.ObtenerTodosAsync("proyecto", "indicador") ?? new();
-    }
-
-    private async Task CargarRepresentaciones()
-    {
-        responsables = await servicioEntidad.ObtenerTodosAsync("proyecto", "responsable") ?? new();
-    }
-
-    private void EliminarSeleccionadas()
-    {
-        var seleccionadas = relacionSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
-        foreach (var r in seleccionadas)
-        {
-            relaciones.Remove(r);
-            relacionSeleccionada.Remove(r);
-        }
-        seleccionarTodas = false;
-    }
-
     private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
     {
         return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
     }
-
-    private void AbrirModalCrearRelacion()
+    
+    private string ObtenerFechaFormateada(Dictionary<string, object> diccionario, string clave)
     {
-        mostrarModalCrear = true;
-        idIndicador = 0;
-        idResponsable = "";
-        fechaAsignacion = DateTime.Today;  // Establecer la fecha de asignación al día de hoy
+        if (diccionario.TryGetValue(clave, out var valor) && valor != null)
+        {
+            if (DateTime.TryParse(valor.ToString(), out DateTime fecha))
+            {
+                return fecha.ToString("dd/MM/yyyy HH:mm:ss");
+            }
+        }
+        return "";
     }
 
-    private void CerrarModalCrear()
+    private void AbrirModalGuardar()
     {
-        mostrarModalCrear = false;
-        idIndicador = 0;
+        mostrarModalGuardar = true;
         idResponsable = "";
-        fechaAsignacion = DateTime.Today;  // Restablecer la fecha de asignación
+        idIndicador = 0;
+        fechaAsignacion = DateTime.Now;
     }
 
-    private async Task GuardarRelacion()
+    private void CerrarModalGuardar()
+    {
+        mostrarModalGuardar = false;
+    }
+
+    private async Task GuardarResponsable()
     {
         try
         {
-            var parametros = new Dictionary<string, object>
+            var nuevoResponsable = new Dictionary<string, object>
             {
-                { "fkidindicador", idIndicador },
                 { "fkidresponsable", idResponsable },
-                { "fechaasignacion", fechaAsignacion.ToString("yyyy-MM-dd") } // Incluyendo la fecha de asignación
+                { "fkidindicador", idIndicador },
+                { "fechaasignacion", fechaAsignacion }
             };
 
-            var resultado = await servicioEntidad.InsertarAsync("proyecto", "responsablesporindicador", parametros);
+            var resultado = await servicioEntidad.CrearAsync("proyecto", "responsablesporindicador", nuevoResponsable);
 
-            if (resultado != null)
+            if (resultado)
             {
                 await CargarRelaciones();
-                CerrarModalCrear();
+                CerrarModalGuardar();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al guardar la relación: {ex.Message}");
+            Console.WriteLine($"Error al guardar responsable: {ex.Message}");
         }
     }
 
-    private async Task ConsultarRelacion()
+    private async Task ConsultarResponsable()
     {
-        relacionesConsultadas = await servicioEntidad.ObtenerTodosAsync("proyecto", $"responsablesporindicador/fkidindicador/{idIndicadorConsulta}") ?? new();
+        try
+        {
+            // Para consultar un responsable específico, necesitamos ambas claves primarias
+            var url = $"fkidresponsable/{idResponsableConsultar}/fkidindicador/{idIndicadorConsultar}";
+            var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "responsablesporindicador", "fkidresponsable", idResponsableConsultar.ToString());
+            
+            if (resultado != null && ObtenerValor(resultado, "fkidindicador") == idIndicadorConsultar.ToString())
+            {
+                responsableConsultado = resultado;
+            }
+            else
+            {
+                responsableConsultado = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar responsable: {ex.Message}");
+            responsableConsultado = null;
+        }
     }
 
     private void CerrarModalConsulta()
     {
         mostrarModalConsulta = false;
-        idIndicadorConsulta = 0;
-        relacionesConsultadas.Clear();
+        idResponsableConsultar = "";
+        idIndicadorConsultar = 0;
+        responsableConsultado = null;
+    }
+
+    private void EditarResponsable(Dictionary<string, object> responsable)
+    {
+        idResponsableOriginal = ObtenerValor(responsable, "fkidresponsable");
+        idIndicadorOriginal = int.Parse(ObtenerValor(responsable, "fkidindicador"));
+        
+        idResponsableEditar = idResponsableOriginal;
+        idIndicadorEditar = idIndicadorOriginal;
+        
+        // Intentar parsear la fecha si existe
+        if (DateTime.TryParse(ObtenerValor(responsable, "fechaasignacion"), out DateTime fecha))
+        {
+            fechaAsignacion = fecha;
+        }
+        else
+        {
+            fechaAsignacion = DateTime.Now;
+        }
+        
+        mostrarModalEditar = true;
+    }
+
+    private void EditarResponsableSeleccionado()
+    {
+        var responsableSeleccionado = responsablesSeleccionados.FirstOrDefault(r => r.Value).Key;
+        if (responsableSeleccionado != null)
+        {
+            EditarResponsable(responsableSeleccionado);
+        }
+    }
+
+    private void CerrarModalEditar()
+    {
+        mostrarModalEditar = false;
+    }
+
+    private async Task ActualizarResponsable()
+    {
+        try
+        {
+            // Para actualizar un responsable, primero debemos eliminar el existente y luego crear uno nuevo
+            var eliminado = await servicioEntidad.EliminarAsync(
+                "proyecto", 
+                "responsablesporindicador", 
+                "fkidresponsable", 
+                idResponsableOriginal);
+
+            if (eliminado)
+            {
+                var nuevoResponsable = new Dictionary<string, object>
+                {
+                    { "fkidresponsable", idResponsableEditar },
+                    { "fkidindicador", idIndicadorEditar },
+                    { "fechaasignacion", fechaAsignacion }
+                };
+
+                var creado = await servicioEntidad.CrearAsync("proyecto", "responsablesporindicador", nuevoResponsable);
+                
+                if (creado)
+                {
+                    await CargarRelaciones();
+                    CerrarModalEditar();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al actualizar responsable: {ex.Message}");
+        }
+    }
+
+    private void EliminarResponsable(Dictionary<string, object> responsable)
+    {
+        responsableAEliminar = responsable;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        responsableAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminarResponsable()
+    {
+        if (responsableAEliminar != null)
+        {
+            var idResponsable = ObtenerValor(responsableAEliminar, "fkidresponsable");
+            var idIndicador = ObtenerValor(responsableAEliminar, "fkidindicador");
+
+            try
+            {
+                var resultado = await servicioEntidad.EliminarAsync(
+                    "proyecto", 
+                    "responsablesporindicador", 
+                    "fkidresponsable", 
+                    idResponsable);
+
+                if (resultado)
+                {
+                    await CargarRelaciones();
+                    CerrarModalEliminar();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar responsable: {ex.Message}");
+            }
+        }
+    }
+
+    private void MostrarModalEliminarMultiples()
+    {
+        if (responsablesSeleccionados.Any(r => r.Value))
+        {
+            mostrarModalEliminarMultiples = true;
+        }
+    }
+
+    private void CerrarModalEliminarMultiples()
+    {
+        mostrarModalEliminarMultiples = false;
+    }
+
+    private async Task ConfirmarEliminarSeleccionados()
+    {
+        var responsablesParaEliminar = responsablesSeleccionados
+            .Where(r => r.Value)
+            .Select(r => r.Key)
+            .ToList();
+
+        bool todosEliminados = true;
+
+        foreach (var responsable in responsablesParaEliminar)
+        {
+            var idResponsable = ObtenerValor(responsable, "fkidresponsable");
+
+            var resultado = await servicioEntidad.EliminarAsync(
+                "proyecto", 
+                "responsablesporindicador", 
+                "fkidresponsable", 
+                idResponsable);
+
+            if (!resultado)
+            {
+                todosEliminados = false;
+            }
+        }
+
+        if (todosEliminados)
+        {
+            await CargarRelaciones();
+            CerrarModalEliminarMultiples();
+        }
     }
 }

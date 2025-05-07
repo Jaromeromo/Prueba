@@ -1,12 +1,9 @@
-@page "/resultadoindicador"
+@page "/ResultadoIndicador"
 @using System.Collections.Generic
 @using System.Threading.Tasks
-@using System.Text.Json
 @using Services
 @inject ServicioEntidad servicioEntidad
 @inject NavigationManager navegacionManager
-
-<PageTitle>Relación Resultado por Indicador</PageTitle>
 
 <div class="container-xl">
     <div class="table-responsive">
@@ -14,19 +11,23 @@
             <div class="table-title">
                 <div class="row">
                     <div class="col-sm-6">
-                        <h2>Administrar <b>Resultados por Indicador</b></h2>
+                        <h2>Administrar <b>Resultados de Indicadores</b></h2>
                     </div>
                     <div class="col-sm-6">
                         <button class="btn btn-info btn-sm" @onclick="() => mostrarModalConsulta = true">
                             <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
                         </button>
 
-                        <button class="btn btn-danger btn-sm" @onclick="EliminarSeleccionadas">
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
                             <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
                         </button>
 
-                        <button class="btn btn-success btn-sm" @onclick="AbrirModalCrearRelacion">
-                            <i class="material-icons">&#xE147;</i> <span>Agregar Nuevo Resultado</span>
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModalGuardar">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="EditarResultadoSeleccionado">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionado</span>
                         </button>
                     </div>
                 </div>
@@ -36,9 +37,9 @@
             {
                 <p><em>Cargando...</em></p>
             }
-            else if (relaciones == null || relaciones.Count == 0)
+            else if (resultados == null || resultados.Count == 0)
             {
-                <p>No hay resultados disponibles.</p>
+                <p>No hay Resultados de Indicadores disponibles.</p>
             }
             else
             {
@@ -47,30 +48,40 @@
                         <tr>
                             <th>
                                 <span class="custom-checkbox">
-                                    <input type="checkbox" @bind="@seleccionarTodas">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
                                     <label></label>
                                 </span>
                             </th>
-                            <th>ID Resultado</th>
+                            <th>ID</th>
                             <th>Resultado</th>
-                            <th>Fecha de Cálculo</th>
+                            <th>Fecha Cálculo</th>
                             <th>ID Indicador</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var relacion in relaciones)
+                        @foreach (var resultado in resultados)
                         {
                             <tr>
                                 <td>
                                     <span class="custom-checkbox">
-                                        <input type="checkbox" @bind="@relacionSeleccionada[relacion]">
+                                        <input type="checkbox" @bind="@resultadosSeleccionados[resultado]">
                                         <label></label>
                                     </span>
                                 </td>
-                                <td>@ObtenerValor(relacion, "id")</td>
-                                <td>@ObtenerValor(relacion, "resultado")</td>
-                                <td>@ObtenerValor(relacion, "fechacalculo")</td>
-                                <td>@ObtenerValor(relacion, "fkidindicador")</td>
+                                <td>@ObtenerValor(resultado, "id")</td>
+                                <td>@ObtenerValor(resultado, "resultado")</td>
+                                <td>@ObtenerFechaFormateada(resultado, "fechacalculo")</td>
+                                <td>@ObtenerValor(resultado, "fkidindicador")</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => EditarResultado(resultado)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarResultado(resultado)"
+                                        @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -80,34 +91,75 @@
     </div>
 </div>
 
+@if (mostrarModalGuardar)
+{
+   <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form @onsubmit="GuardarResultado">
+                <div class="modal-header">
+                    <h4 class="modal-title">Agregar Resultado de Indicador</h4>
+                    <button type="button" class="close" @onclick="CerrarModalGuardar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Resultado</label>
+                        <input type="number" step="0.01" class="form-control" @bind="valorResultado" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Cálculo</label>
+                        <input type="datetime-local" class="form-control" @bind="fechaCalculo" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Indicador</label>
+                        <input type="number" class="form-control" @bind="idIndicador" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalGuardar">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
 @if (mostrarModalConsulta)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Consultar Resultado</h4>
+                    <h4 class="modal-title">Consultar Resultado de Indicador</h4>
                     <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Id Indicador</label>
-                        <input type="number" class="form-control" @bind="idIndicadorConsulta">
+                        <label>ID Resultado</label>
+                        <input type="number" class="form-control" @bind="idResultadoConsultar">
                     </div>
-                    <button class="btn btn-primary mt-2" @onclick="ConsultarRelacion">Buscar</button>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarResultado">Buscar</button>
 
-                    @if (relacionesConsultadas != null && relacionesConsultadas.Count > 0)
+                    @if (resultadoConsultado != null)
                     {
-                        <hr />
-                        <h5>Resultados Asociados</h5>
-                        <ul class="list-group">
-                            @foreach (var r in relacionesConsultadas)
-                            {
-                                <li class="list-group-item">
-                                    Resultado ID: @ObtenerValor(r, "id") - Resultado: @ObtenerValor(r, "resultado")
-                                </li>
-                            }
-                        </ul>
+                        <hr>
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(resultadoConsultado, "id")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Resultado</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(resultadoConsultado, "resultado")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Cálculo</label>
+                            <input type="text" class="form-control" value="@ObtenerFechaFormateada(resultadoConsultado, "fechacalculo")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(resultadoConsultado, "fkidindicador")" disabled>
+                        </div>
                     }
                 </div>
                 <div class="modal-footer">
@@ -118,41 +170,33 @@
     </div>
 }
 
-@if (mostrarModalCrear)
+@if (mostrarModalEditar)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form @onsubmit="GuardarRelacion">
+                <form @onsubmit="ActualizarResultado">
                     <div class="modal-header">
-                        <h4 class="modal-title">Nuevo Resultado</h4>
-                        <button type="button" class="close" @onclick="CerrarModalCrear">&times;</button>
+                        <h4 class="modal-title">Editar Resultado de Indicador</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
                             <label>Resultado</label>
-                            <input type="number" class="form-control" @bind="nuevoResultado">
+                            <input type="number" step="0.01" class="form-control" @bind="resultadoEditar" required>
                         </div>
-
                         <div class="form-group">
-                            <label>Fecha de Cálculo</label>
-                            <input type="datetime-local" class="form-control" @bind="fechacalculo">
+                            <label>Fecha Cálculo</label>
+                            <input type="datetime-local" class="form-control" @bind="fechaCalculoEditar" required>
                         </div>
-
                         <div class="form-group">
-                            <label>Indicador</label>
-                            <select class="form-control" @bind="idIndicador">
-                                <option value="0">Seleccione un indicador</option>
-                                @foreach (var i in indicadores)
-                                {
-                                    <option value="@ObtenerValor(i, "id")">@ObtenerValor(i, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" @bind="idIndicadorEditar" required>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Guardar Resultado</button>
-                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalCrear">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
                     </div>
                 </form>
             </div>
@@ -160,39 +204,97 @@
     </div>
 }
 
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarResultado">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Resultado de Indicador</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar este registro?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Resultados Seleccionados</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar los registros seleccionados?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+
 @code {
-    private List<Dictionary<string, object>> relaciones = new();
-    private Dictionary<Dictionary<string, object>, bool> relacionSeleccionada = new();
-    private List<Dictionary<string, object>> indicadores = new();
-    private List<Dictionary<string, object>> relacionesConsultadas = new();
-
+    private List<Dictionary<string, object>> resultados = new();
+    private Dictionary<Dictionary<string, object>, bool> resultadosSeleccionados = new();
     private bool cargando = true;
+    private bool mostrarModalGuardar = false;
     private bool mostrarModalConsulta = false;
-    private bool mostrarModalCrear = false;
+    private bool mostrarModalEditar = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalEliminarMultiples = false;
 
-    private bool seleccionarTodas
+    // Variables para los formularios
+    private double valorResultado;
+    private DateTime fechaCalculo = DateTime.Now;
+    private double resultadoEditar;
+    private DateTime fechaCalculoEditar = DateTime.Now;
+    private int idIndicador;
+    private int idIndicadorConsultar;
+    private int idResultadoConsultar;
+    private int idIndicadorEditar;
+    private int idActual; // Para guardar el ID actual al editar
+
+    private Dictionary<string, object> resultadoAEliminar;
+    private Dictionary<string, object> resultadoConsultado;
+
+    private bool seleccionarTodos
     {
-        get => _seleccionarTodas;
+        get => _seleccionarTodos;
         set
         {
-            _seleccionarTodas = value;
-            foreach (var clave in relacionSeleccionada.Keys.ToList())
+            _seleccionarTodos = value;
+            foreach (var resultado in resultados)
             {
-                relacionSeleccionada[clave] = _seleccionarTodas;
+                resultadosSeleccionados[resultado] = _seleccionarTodos;
             }
         }
     }
-    private bool _seleccionarTodas = false;
-
-    private int idIndicador;
-    private float nuevoResultado; // Renombrado de "resultado" a "nuevoResultado"
-    private DateTime fechacalculo;
-    private int idIndicadorConsulta;
+    private bool _seleccionarTodos = false;
 
     protected override async Task OnInitializedAsync()
     {
         await CargarRelaciones();
-        await CargarIndicadores();
     }
 
     private async Task CargarRelaciones()
@@ -200,13 +302,13 @@
         cargando = true;
         try
         {
-            relaciones = await servicioEntidad.ObtenerTodosAsync("proyecto", "resultadoindicador") ?? new();
-            relacionSeleccionada = relaciones.ToDictionary(r => r, r => false);
+            resultados = await servicioEntidad.ObtenerTodosAsync("proyecto", "resultadoindicador") ?? new();
+            resultadosSeleccionados = resultados.ToDictionary(r => r, r => false);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar relaciones: {ex.Message}");
-            relaciones = new();
+            Console.WriteLine($"Error al cargar resultados: {ex.Message}");
+            resultados = new();
         }
         finally
         {
@@ -214,77 +316,256 @@
         }
     }
 
-    private async Task CargarIndicadores()
-    {
-        indicadores = await servicioEntidad.ObtenerTodosAsync("proyecto", "indicador") ?? new();
-    }
-
-    private void EliminarSeleccionadas()
-    {
-        var seleccionadas = relacionSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
-        foreach (var r in seleccionadas)
-        {
-            relaciones.Remove(r);
-            relacionSeleccionada.Remove(r);
-        }
-        seleccionarTodas = false;
-    }
-
     private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
     {
         return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
     }
 
-    private void AbrirModalCrearRelacion()
+    private string ObtenerFechaFormateada(Dictionary<string, object> diccionario, string clave)
     {
-        mostrarModalCrear = true;
-        nuevoResultado = 0; // Asignar al nuevo nombre
-        fechacalculo = DateTime.Now;
-        idIndicador = 0;
+        if (diccionario.TryGetValue(clave, out var valor) && valor != null)
+        {
+            if (DateTime.TryParse(valor.ToString(), out DateTime fecha))
+            {
+                return fecha.ToString("dd/MM/yyyy HH:mm:ss");
+            }
+        }
+        return "";
     }
 
-    private void CerrarModalCrear()
+    private void AbrirModalGuardar()
     {
-        mostrarModalCrear = false;
-        nuevoResultado = 0; // Asignar al nuevo nombre
-        fechacalculo = DateTime.Now;
+        mostrarModalGuardar = true;
         idIndicador = 0;
+        valorResultado = 0;
+        fechaCalculo = DateTime.Now;
     }
 
-    private async Task GuardarRelacion()
+    private void CerrarModalGuardar()
+    {
+        mostrarModalGuardar = false;
+    }
+
+    private async Task GuardarResultado()
     {
         try
         {
-            var parametros = new Dictionary<string, object>
+            // Crear un nuevo resultado con los campos según la estructura de la tabla
+            var nuevoResultado = new Dictionary<string, object>
             {
-                { "resultado", nuevoResultado }, // Usar el nuevo nombre aquí
-                { "fechacalculo", fechacalculo },
+                { "resultado", valorResultado },
+                { "fechacalculo", fechaCalculo },
                 { "fkidindicador", idIndicador }
             };
 
-            var resultado = await servicioEntidad.InsertarAsync("proyecto", "resultadoindicador", parametros);
+            var resultado = await servicioEntidad.CrearAsync("proyecto", "resultadoindicador", nuevoResultado);
 
-            if (resultado != null)
+            if (resultado)
             {
                 await CargarRelaciones();
-                CerrarModalCrear();
+                CerrarModalGuardar();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al guardar la relación: {ex.Message}");
+            Console.WriteLine($"Error al guardar resultado: {ex.Message}");
         }
     }
 
-    private async Task ConsultarRelacion()
+    private async Task ConsultarResultado()
     {
-        relacionesConsultadas = await servicioEntidad.ObtenerTodosAsync("proyecto", $"resultadoindicador/fkidindicador/{idIndicadorConsulta}") ?? new();
+        try
+        {
+            // Primero buscar por id
+            var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "resultadoindicador", "id", idResultadoConsultar.ToString());
+            
+            if (resultado != null)
+            {
+                resultadoConsultado = resultado;
+            }
+            else
+            {
+                // Si no se encuentra por id, intentar buscar por fkidindicador
+                resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "resultadoindicador", "fkidindicador", idIndicadorConsultar.ToString());
+                resultadoConsultado = resultado;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar resultado: {ex.Message}");
+            resultadoConsultado = null;
+        }
     }
 
     private void CerrarModalConsulta()
     {
         mostrarModalConsulta = false;
-        idIndicadorConsulta = 0;
-        relacionesConsultadas.Clear();
+        idIndicadorConsultar = 0;
+        idResultadoConsultar = 0;
+        resultadoConsultado = null;
+    }
+
+    private void EditarResultado(Dictionary<string, object> resultado)
+    {
+        // Guardar el ID actual para la actualización
+        if (int.TryParse(ObtenerValor(resultado, "id"), out int id))
+        {
+            idActual = id;
+        }
+
+        // Obtener el ID del indicador
+        if (int.TryParse(ObtenerValor(resultado, "fkidindicador"), out int idInd))
+        {
+            idIndicadorEditar = idInd;
+        }
+        
+        // Obtener el valor del resultado
+        if (double.TryParse(ObtenerValor(resultado, "resultado"), out double valor))
+        {
+            resultadoEditar = valor;
+        }
+        
+        // Obtener la fecha de cálculo
+        if (DateTime.TryParse(ObtenerValor(resultado, "fechacalculo"), out DateTime fechaCalc))
+        {
+            fechaCalculoEditar = fechaCalc;
+        }
+        else
+        {
+            fechaCalculoEditar = DateTime.Now;
+        }
+
+        mostrarModalEditar = true;
+    }
+
+    private void EditarResultadoSeleccionado()
+    {
+        var resultadoSeleccionado = resultadosSeleccionados.FirstOrDefault(r => r.Value).Key;
+        if (resultadoSeleccionado != null)
+        {
+            EditarResultado(resultadoSeleccionado);
+        }
+    }
+
+    private void CerrarModalEditar()
+    {
+        mostrarModalEditar = false;
+    }
+
+    private async Task ActualizarResultado()
+    {
+        try
+        {
+            // Crear un diccionario con los valores actualizados
+            var resultadoActualizado = new Dictionary<string, object>
+            {
+                { "id", idActual },
+                { "resultado", resultadoEditar },
+                { "fechacalculo", fechaCalculoEditar },
+                { "fkidindicador", idIndicadorEditar }
+            };
+
+            // Actualizar el resultado usando el ID
+            var actualizado = await servicioEntidad.ActualizarAsync(
+            "proyecto", 
+            "resultadoindicador", 
+            "id",  // Columna clave
+            idActual.ToString(),  // Valor clave - This was missing
+            resultadoActualizado);
+
+            if (actualizado)
+            {
+                await CargarRelaciones();
+                CerrarModalEditar();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al actualizar resultado: {ex.Message}");
+        }
+    }
+
+    private void EliminarResultado(Dictionary<string, object> resultado)
+    {
+        resultadoAEliminar = resultado;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        resultadoAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminarResultado()
+    {
+        if (resultadoAEliminar != null)
+        {
+            var id = ObtenerValor(resultadoAEliminar, "id");
+
+            try
+            {
+                var resultado = await servicioEntidad.EliminarAsync(
+                    "proyecto",
+                    "resultadoindicador",
+                    "id",  // Eliminar por ID, no por fkidindicador
+                    id);
+
+                if (resultado)
+                {
+                    await CargarRelaciones();
+                    CerrarModalEliminar();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar resultado: {ex.Message}");
+            }
+        }
+    }
+
+    private void MostrarModalEliminarMultiples()
+    {
+        if (resultadosSeleccionados.Any(r => r.Value))
+        {
+            mostrarModalEliminarMultiples = true;
+        }
+    }
+
+    private void CerrarModalEliminarMultiples()
+    {
+        mostrarModalEliminarMultiples = false;
+    }
+
+    private async Task ConfirmarEliminarSeleccionados()
+    {
+        var resultadosParaEliminar = resultadosSeleccionados
+            .Where(r => r.Value)
+            .Select(r => r.Key)
+            .ToList();
+
+        bool todosEliminados = true;
+
+        foreach (var resultado in resultadosParaEliminar)
+        {
+            var id = ObtenerValor(resultado, "id");
+
+            var res = await servicioEntidad.EliminarAsync(
+                "proyecto",
+                "resultadoindicador",
+                "id",  // Eliminar por ID, no por fkidindicador
+                id);
+
+            if (!res)
+            {
+                todosEliminados = false;
+            }
+        }
+
+        if (todosEliminados)
+        {
+            await CargarRelaciones();
+            CerrarModalEliminarMultiples();
+        }
     }
 }

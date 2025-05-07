@@ -1,12 +1,9 @@
-@page "/variable"
+@page "/Variable"
 @using System.Collections.Generic
 @using System.Threading.Tasks
-@using System.Text.Json
 @using Services
 @inject ServicioEntidad servicioEntidad
 @inject NavigationManager navegacionManager
-
-<PageTitle>Administrar Variables</PageTitle>
 
 <div class="container-xl">
     <div class="table-responsive">
@@ -21,12 +18,16 @@
                             <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
                         </button>
 
-                        <button class="btn btn-danger btn-sm" @onclick="EliminarSeleccionadas">
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
                             <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
                         </button>
 
-                        <button class="btn btn-success btn-sm" @onclick="AbrirModalCrear">
-                            <i class="material-icons">&#xE147;</i> <span>Agregar Nueva Variable</span>
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModalGuardar">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="EditarVariableSeleccionada">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionada</span>
                         </button>
                     </div>
                 </div>
@@ -38,7 +39,7 @@
             }
             else if (variables == null || variables.Count == 0)
             {
-                <p>No hay variables disponibles.</p>
+                <p>No hay Variables disponibles.</p>
             }
             else
             {
@@ -47,7 +48,7 @@
                         <tr>
                             <th>
                                 <span class="custom-checkbox">
-                                    <input type="checkbox" @bind="@seleccionarTodas">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
                                     <label></label>
                                 </span>
                             </th>
@@ -55,6 +56,7 @@
                             <th>Nombre</th>
                             <th>Fecha Creación</th>
                             <th>Email Usuario</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -63,14 +65,23 @@
                             <tr>
                                 <td>
                                     <span class="custom-checkbox">
-                                        <input type="checkbox" @bind="@variableSeleccionada[variable]">
+                                        <input type="checkbox" @bind="@variablesSeleccionadas[variable]">
                                         <label></label>
                                     </span>
                                 </td>
                                 <td>@ObtenerValor(variable, "id")</td>
                                 <td>@ObtenerValor(variable, "nombre")</td>
-                                <td>@ObtenerValor(variable, "fechacreacion")</td>
+                                <td>@ObtenerFechaFormateada(variable, "fechacreacion")</td>
                                 <td>@ObtenerValor(variable, "fkemailusuario")</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => EditarVariable(variable)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarVariable(variable)"
+                                        @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -79,6 +90,36 @@
         </div>
     </div>
 </div>
+
+@if (mostrarModalGuardar)
+{
+   <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form @onsubmit="GuardarVariable">
+                <div class="modal-header">
+                    <h4 class="modal-title">Agregar Variable</h4>
+                    <button type="button" class="close" @onclick="CerrarModalGuardar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        <input type="text" class="form-control" @bind="nombreVariable" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Usuario</label>
+                        <input type="email" class="form-control" @bind="emailUsuario" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalGuardar">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
 
 @if (mostrarModalConsulta)
 {
@@ -91,23 +132,30 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Nombre de la Variable</label>
-                        <input type="text" class="form-control" @bind="nombreVariableConsulta">
+                        <label>ID Variable</label>
+                        <input type="number" class="form-control" @bind="idVariableConsultar">
                     </div>
                     <button class="btn btn-primary mt-2" @onclick="ConsultarVariable">Buscar</button>
 
-                    @if (variablesConsultadas != null && variablesConsultadas.Count > 0)
+                    @if (variableConsultada != null)
                     {
-                        <hr />
-                        <h5>Variables Encontradas</h5>
-                        <ul class="list-group">
-                            @foreach (var v in variablesConsultadas)
-                            {
-                                <li class="list-group-item">
-                                    Variable ID: @ObtenerValor(v, "id") - Nombre: @ObtenerValor(v, "nombre")
-                                </li>
-                            }
-                        </ul>
+                        <hr>
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(variableConsultada, "id")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" value="@ObtenerValor(variableConsultada, "nombre")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Creación</label>
+                            <input type="text" class="form-control" value="@ObtenerFechaFormateada(variableConsultada, "fechacreacion")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Email Usuario</label>
+                            <input type="email" class="form-control" value="@ObtenerValor(variableConsultada, "fkemailusuario")" disabled>
+                        </div>
                     }
                 </div>
                 <div class="modal-footer">
@@ -118,30 +166,78 @@
     </div>
 }
 
-@if (mostrarModalCrear)
+@if (mostrarModalEditar)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form @onsubmit="GuardarVariable">
+                <form @onsubmit="ActualizarVariable">
                     <div class="modal-header">
-                        <h4 class="modal-title">Nueva Variable</h4>
-                        <button type="button" class="close" @onclick="CerrarModalCrear">&times;</button>
+                        <h4 class="modal-title">Editar Variable</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Nombre de la Variable</label>
-                            <input type="text" class="form-control" @bind="nombreVariable">
+                            <label>Nombre</label>
+                            <input type="text" class="form-control" @bind="nombreEditar" required>
                         </div>
-
                         <div class="form-group">
                             <label>Email Usuario</label>
-                            <input type="email" class="form-control" @bind="emailUsuario">
+                            <input type="email" class="form-control" @bind="emailUsuarioEditar" required>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Guardar Variable</button>
-                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalCrear">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarVariable">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Variable</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar este registro?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Variables Seleccionadas</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar los registros seleccionados?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
                     </div>
                 </form>
             </div>
@@ -152,30 +248,37 @@
 
 @code {
     private List<Dictionary<string, object>> variables = new();
-    private Dictionary<Dictionary<string, object>, bool> variableSeleccionada = new();
-    private List<Dictionary<string, object>> variablesConsultadas = new(); // Agregado para almacenar los resultados de la consulta
-
+    private Dictionary<Dictionary<string, object>, bool> variablesSeleccionadas = new();
     private bool cargando = true;
+    private bool mostrarModalGuardar = false;
     private bool mostrarModalConsulta = false;
-    private bool mostrarModalCrear = false;
-
-    private bool seleccionarTodas
-    {
-        get => _seleccionarTodas;
-        set
-        {
-            _seleccionarTodas = value;
-            foreach (var clave in variableSeleccionada.Keys.ToList())
-            {
-                variableSeleccionada[clave] = _seleccionarTodas;
-            }
-        }
-    }
-    private bool _seleccionarTodas = false;
+    private bool mostrarModalEditar = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalEliminarMultiples = false;
+    
+    private Dictionary<string, object> variableAEliminar;
+    private Dictionary<string, object> variableConsultada;
 
     private string nombreVariable;
     private string emailUsuario;
-    private string nombreVariableConsulta;
+    private int idVariableConsultar;
+    private string nombreEditar;
+    private string emailUsuarioEditar;
+    private int idVariableOriginal;
+
+    private bool seleccionarTodos
+    {
+        get => _seleccionarTodos;
+        set
+        {
+            _seleccionarTodos = value;
+            foreach (var variable in variables)
+            {
+                variablesSeleccionadas[variable] = _seleccionarTodos;
+            }
+        }
+    }
+    private bool _seleccionarTodos = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -189,7 +292,7 @@
         try
         {
             variables = await servicioEntidad.ObtenerTodosAsync("proyecto", "variable") ?? new();
-            variableSeleccionada = variables.ToDictionary(v => v, v => false);
+            variablesSeleccionadas = variables.ToDictionary(v => v, v => false);
         }
         catch (Exception ex)
         {
@@ -202,69 +305,223 @@
         }
     }
 
-    private void EliminarSeleccionadas()
-    {
-        var seleccionadas = variableSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
-        foreach (var v in seleccionadas)
-        {
-            variables.Remove(v);
-            variableSeleccionada.Remove(v);
-        }
-        seleccionarTodas = false;
-    }
-
     private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
     {
         return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
     }
-
-    private void AbrirModalCrear()
+    
+    private string ObtenerFechaFormateada(Dictionary<string, object> diccionario, string clave)
     {
-        mostrarModalCrear = true;
-        nombreVariable = string.Empty;
-        emailUsuario = string.Empty;
+        if (diccionario.TryGetValue(clave, out var valor) && valor != null)
+        {
+            if (DateTime.TryParse(valor.ToString(), out DateTime fecha))
+            {
+                return fecha.ToString("dd/MM/yyyy HH:mm:ss");
+            }
+        }
+        return "";
     }
 
-    private void CerrarModalCrear()
+    private void AbrirModalGuardar()
     {
-        mostrarModalCrear = false;
-        nombreVariable = string.Empty;
-        emailUsuario = string.Empty;
+        mostrarModalGuardar = true;
+        nombreVariable = "";
+        emailUsuario = "";
+    }
+
+    private void CerrarModalGuardar()
+    {
+        mostrarModalGuardar = false;
     }
 
     private async Task GuardarVariable()
     {
         try
         {
-            var parametros = new Dictionary<string, object>
+            var nuevaVariable = new Dictionary<string, object>
             {
                 { "nombre", nombreVariable },
                 { "fkemailusuario", emailUsuario }
+                // fechacreacion se genera automáticamente por la base de datos
             };
 
-            var resultado = await servicioEntidad.InsertarAsync("proyecto", "variable", parametros);
+            var resultado = await servicioEntidad.CrearAsync("proyecto", "variable", nuevaVariable);
 
-            if (resultado != null)
+            if (resultado)
             {
                 await CargarVariables();
-                CerrarModalCrear();
+                CerrarModalGuardar();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al guardar la variable: {ex.Message}");
+            Console.WriteLine($"Error al guardar variable: {ex.Message}");
         }
     }
 
     private async Task ConsultarVariable()
     {
-        variablesConsultadas = await servicioEntidad.ObtenerTodosAsync("proyecto", $"variable/nombre/{nombreVariableConsulta}") ?? new();
+        try
+        {
+            var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "variable", "id", idVariableConsultar.ToString());
+            
+            if (resultado != null)
+            {
+                variableConsultada = resultado;
+            }
+            else
+            {
+                variableConsultada = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar variable: {ex.Message}");
+            variableConsultada = null;
+        }
     }
 
     private void CerrarModalConsulta()
     {
         mostrarModalConsulta = false;
-        nombreVariableConsulta = string.Empty;
-        variablesConsultadas.Clear();
+        idVariableConsultar = 0;
+        variableConsultada = null;
+    }
+
+    private void EditarVariable(Dictionary<string, object> variable)
+    {
+        idVariableOriginal = int.Parse(ObtenerValor(variable, "id"));
+        nombreEditar = ObtenerValor(variable, "nombre");
+        emailUsuarioEditar = ObtenerValor(variable, "fkemailusuario");
+        
+        mostrarModalEditar = true;
+    }
+
+    private void EditarVariableSeleccionada()
+    {
+        var variableSeleccionada = variablesSeleccionadas.FirstOrDefault(v => v.Value).Key;
+        if (variableSeleccionada != null)
+        {
+            EditarVariable(variableSeleccionada);
+        }
+    }
+
+    private void CerrarModalEditar()
+    {
+        mostrarModalEditar = false;
+    }
+
+    private async Task ActualizarVariable()
+    {
+        try
+        {
+            var variableActualizada = new Dictionary<string, object>
+            {
+                { "nombre", nombreEditar },
+                { "fkemailusuario", emailUsuarioEditar }
+                // No actualizamos fechacreacion ya que es automática
+            };
+
+            var resultado = await servicioEntidad.ActualizarAsync(
+                "proyecto", 
+                "variable", 
+                "id", 
+                idVariableOriginal.ToString(), 
+                variableActualizada);
+            
+            if (resultado)
+            {
+                await CargarVariables();
+                CerrarModalEditar();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al actualizar variable: {ex.Message}");
+        }
+    }
+
+    private void EliminarVariable(Dictionary<string, object> variable)
+    {
+        variableAEliminar = variable;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        variableAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminarVariable()
+    {
+        if (variableAEliminar != null)
+        {
+            var idVariable = ObtenerValor(variableAEliminar, "id");
+
+            try
+            {
+                var resultado = await servicioEntidad.EliminarAsync(
+                    "proyecto", 
+                    "variable", 
+                    "id", 
+                    idVariable);
+
+                if (resultado)
+                {
+                    await CargarVariables();
+                    CerrarModalEliminar();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar variable: {ex.Message}");
+            }
+        }
+    }
+
+    private void MostrarModalEliminarMultiples()
+    {
+        if (variablesSeleccionadas.Any(v => v.Value))
+        {
+            mostrarModalEliminarMultiples = true;
+        }
+    }
+
+    private void CerrarModalEliminarMultiples()
+    {
+        mostrarModalEliminarMultiples = false;
+    }
+
+    private async Task ConfirmarEliminarSeleccionados()
+    {
+        var variablesParaEliminar = variablesSeleccionadas
+            .Where(v => v.Value)
+            .Select(v => v.Key)
+            .ToList();
+
+        bool todosEliminados = true;
+
+        foreach (var variable in variablesParaEliminar)
+        {
+            var idVariable = ObtenerValor(variable, "id");
+
+            var resultado = await servicioEntidad.EliminarAsync(
+                "proyecto", 
+                "variable", 
+                "id", 
+                idVariable);
+
+            if (!resultado)
+            {
+                todosEliminados = false;
+            }
+        }
+
+        if (todosEliminados)
+        {
+            await CargarVariables();
+            CerrarModalEliminarMultiples();
+        }
     }
 }

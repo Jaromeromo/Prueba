@@ -1,12 +1,9 @@
-@page "/variablesporindicador"
+@page "/VariablesPorIndicador"
 @using System.Collections.Generic
 @using System.Threading.Tasks
-@using System.Text.Json
 @using Services
 @inject ServicioEntidad servicioEntidad
 @inject NavigationManager navegacionManager
-
-<PageTitle>Relación Variables por Indicador</PageTitle>
 
 <div class="container-xl">
     <div class="table-responsive">
@@ -21,12 +18,16 @@
                             <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
                         </button>
 
-                        <button class="btn btn-danger btn-sm" @onclick="EliminarSeleccionadas">
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
                             <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
                         </button>
 
-                        <button class="btn btn-success btn-sm" @onclick="AbrirModalCrearRelacion">
-                            <i class="material-icons">&#xE147;</i> <span>Agregar Nueva Relación</span>
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModalGuardar">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="EditarVariablePorIndicadorSeleccionada">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionada</span>
                         </button>
                     </div>
                 </div>
@@ -36,9 +37,9 @@
             {
                 <p><em>Cargando...</em></p>
             }
-            else if (relaciones == null || relaciones.Count == 0)
+            else if (variablesPorIndicador == null || variablesPorIndicador.Count == 0)
             {
-                <p>No hay relaciones disponibles.</p>
+                <p>No hay Variables por Indicador disponibles.</p>
             }
             else
             {
@@ -47,32 +48,44 @@
                         <tr>
                             <th>
                                 <span class="custom-checkbox">
-                                    <input type="checkbox" @bind="@seleccionarTodas">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
                                     <label></label>
                                 </span>
                             </th>
-                            <th>Id Variable</th>
-                            <th>Id Indicador</th>
-                            <th>Email Usuario</th>
+                            <th>ID</th>
+                            <th>ID Variable</th>
+                            <th>ID Indicador</th>
                             <th>Dato</th>
-                            <th>Fecha</th>
+                            <th>Email Usuario</th>
+                            <th>Fecha Dato</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var relacion in relaciones)
+                        @foreach (var variablePorIndicador in variablesPorIndicador)
                         {
                             <tr>
                                 <td>
                                     <span class="custom-checkbox">
-                                        <input type="checkbox" @bind="@relacionSeleccionada[relacion]">
+                                        <input type="checkbox" @bind="@variablesPorIndicadorSeleccionadas[variablePorIndicador]">
                                         <label></label>
                                     </span>
                                 </td>
-                                <td>@ObtenerValor(relacion, "fkidvariable")</td>
-                                <td>@ObtenerValor(relacion, "fkidindicador")</td>
-                                <td>@ObtenerValor(relacion, "fkemailusuario")</td>
-                                <td>@ObtenerValor(relacion, "dato")</td>
-                                <td>@ObtenerValor(relacion, "fechadato")</td>
+                                <td>@ObtenerValor(variablePorIndicador, "id")</td>
+                                <td>@ObtenerValor(variablePorIndicador, "fkidvariable")</td>
+                                <td>@ObtenerValor(variablePorIndicador, "fkidindicador")</td>
+                                <td>@ObtenerValor(variablePorIndicador, "dato")</td>
+                                <td>@ObtenerValor(variablePorIndicador, "fkemailusuario")</td>
+                                <td>@ObtenerFechaFormateada(variablePorIndicador, "fechadato")</td>
+                                <td>
+                                    <a href="#" class="edit" @onclick="() => EditarVariablePorIndicador(variablePorIndicador)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarVariablePorIndicador(variablePorIndicador)"
+                                        @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -82,36 +95,91 @@
     </div>
 </div>
 
+@if (mostrarModalGuardar)
+{
+   <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form @onsubmit="GuardarVariablePorIndicador">
+                <div class="modal-header">
+                    <h4 class="modal-title">Agregar Variable por Indicador</h4>
+                    <button type="button" class="close" @onclick="CerrarModalGuardar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID Variable</label>
+                        <input type="number" class="form-control" @bind="idVariable" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Indicador</label>
+                        <input type="number" class="form-control" @bind="idIndicador" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Dato</label>
+                        <input type="number" step="0.01" class="form-control" @bind="dato" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Usuario</label>
+                        <input type="email" class="form-control" @bind="emailUsuario" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Dato</label>
+                        <input type="datetime-local" class="form-control" @bind="fechaDato" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalGuardar">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
 @if (mostrarModalConsulta)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Consultar Relación</h4>
+                    <h4 class="modal-title">Consultar Variable por Indicador</h4>
                     <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Id Indicador</label>
-                        <input type="number" class="form-control" @bind="idIndicadorConsulta">
+                        <label>ID</label>
+                        <input type="number" class="form-control" @bind="idVariablePorIndicadorConsultar">
                     </div>
-                    <button class="btn btn-primary mt-2" @onclick="ConsultarRelacion">Buscar</button>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarVariablePorIndicador">Buscar</button>
 
-                    @if (relacionesConsultadas != null && relacionesConsultadas.Count > 0)
+                    @if (variablePorIndicadorConsultada != null)
                     {
-                        <hr />
-                        <h5>Variables Asociadas</h5>
-                        <ul class="list-group">
-                            @foreach (var r in relacionesConsultadas)
-                            {
-                                <li class="list-group-item">
-                                    Variable ID: @ObtenerValor(r, "fkidvariable"),
-                                    Dato: @ObtenerValor(r, "dato"),
-                                    Fecha: @ObtenerValor(r, "fechadato")
-                                </li>
-                            }
-                        </ul>
+                        <hr>
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(variablePorIndicadorConsultada, "id")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>ID Variable</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(variablePorIndicadorConsultada, "fkidvariable")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(variablePorIndicadorConsultada, "fkidindicador")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Dato</label>
+                            <input type="number" class="form-control" value="@ObtenerValor(variablePorIndicadorConsultada, "dato")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Email Usuario</label>
+                            <input type="email" class="form-control" value="@ObtenerValor(variablePorIndicadorConsultada, "fkemailusuario")" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Dato</label>
+                            <input type="text" class="form-control" value="@ObtenerFechaFormateada(variablePorIndicadorConsultada, "fechadato")" disabled>
+                        </div>
                     }
                 </div>
                 <div class="modal-footer">
@@ -122,63 +190,90 @@
     </div>
 }
 
-@if (mostrarModalCrear)
+@if (mostrarModalEditar)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form @onsubmit="GuardarRelacion">
+                <form @onsubmit="ActualizarVariablePorIndicador">
                     <div class="modal-header">
-                        <h4 class="modal-title">Nueva Relación</h4>
-                        <button type="button" class="close" @onclick="CerrarModalCrear">&times;</button>
+                        <h4 class="modal-title">Editar Variable por Indicador</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Indicador</label>
-                            <select class="form-control" @bind="idIndicador">
-                                <option value="0">Seleccione un indicador</option>
-                                @foreach (var i in indicadores)
-                                {
-                                    <option value="@ObtenerValor(i, "id")">@ObtenerValor(i, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Variable</label>
+                            <input type="number" class="form-control" @bind="idVariableEditar" required>
                         </div>
-
                         <div class="form-group">
-                            <label>Variable</label>
-                            <select class="form-control" @bind="idVariable">
-                                <option value="0">Seleccione una variable</option>
-                                @foreach (var v in variables)
-                                {
-                                    <option value="@ObtenerValor(v, "id")">@ObtenerValor(v, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" @bind="idIndicadorEditar" required>
                         </div>
-
-                        <div class="form-group">
-                            <label>Email Usuario</label>
-                            <select class="form-control" @bind="emailUsuario">
-                                <option value="">Seleccione un usuario</option>
-                                @foreach (var u in usuarios)
-                                {
-                                    <option value="@ObtenerValor(u, "email")">@ObtenerValor(u, "email")</option>
-                                }
-                            </select>
-                        </div>
-
                         <div class="form-group">
                             <label>Dato</label>
-                            <input type="number" class="form-control" @bind="dato" step="any">
+                            <input type="number" step="0.01" class="form-control" @bind="datoEditar" required>
                         </div>
-
                         <div class="form-group">
-                            <label>Fecha</label>
-                            <input type="datetime-local" class="form-control" @bind="fechaDato">
+                            <label>Email Usuario</label>
+                            <input type="email" class="form-control" @bind="emailUsuarioEditar" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Dato</label>
+                            <input type="datetime-local" class="form-control" @bind="fechaDatoEditar" required>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Guardar Relación</button>
-                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalCrear">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarVariablePorIndicador">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Variable por Indicador</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar este registro?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Variables por Indicador Seleccionadas</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar los registros seleccionados?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
                     </div>
                 </form>
             </div>
@@ -187,59 +282,63 @@
 }
 
 @code {
-    private List<Dictionary<string, object>> relaciones = new();
-    private Dictionary<Dictionary<string, object>, bool> relacionSeleccionada = new();
-    private List<Dictionary<string, object>> indicadores = new();
-    private List<Dictionary<string, object>> variables = new();
-    private List<Dictionary<string, object>> usuarios = new();
-    private List<Dictionary<string, object>> relacionesConsultadas = new();
-
+    private List<Dictionary<string, object>> variablesPorIndicador = new();
+    private Dictionary<Dictionary<string, object>, bool> variablesPorIndicadorSeleccionadas = new();
     private bool cargando = true;
+    private bool mostrarModalGuardar = false;
     private bool mostrarModalConsulta = false;
-    private bool mostrarModalCrear = false;
+    private bool mostrarModalEditar = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalEliminarMultiples = false;
+    
+    private Dictionary<string, object> variableAEliminar;
+    private Dictionary<string, object> variablePorIndicadorConsultada;
 
-    private bool seleccionarTodas
+    private int idVariable;
+    private int idIndicador;
+    private float dato;
+    private string emailUsuario;
+    private int idVariablePorIndicadorConsultar;
+    private int idVariableEditar;
+    private int idIndicadorEditar;
+    private float datoEditar;
+    private string emailUsuarioEditar;
+    private DateTime fechaDato;
+    private DateTime fechaDatoEditar;
+    private int idVariableOriginal;
+
+    private bool seleccionarTodos
     {
-        get => _seleccionarTodas;
+        get => _seleccionarTodos;
         set
         {
-            _seleccionarTodas = value;
-            foreach (var clave in relacionSeleccionada.Keys.ToList())
+            _seleccionarTodos = value;
+            foreach (var variable in variablesPorIndicador)
             {
-                relacionSeleccionada[clave] = _seleccionarTodas;
+                variablesPorIndicadorSeleccionadas[variable] = _seleccionarTodos;
             }
         }
     }
-    private bool _seleccionarTodas = false;
-
-    private int idIndicador;
-    private int idVariable;
-    private string emailUsuario;
-    private float dato;
-    private DateTime fechaDato;
-    private int idIndicadorConsulta;
+    private bool _seleccionarTodos = false;
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarRelaciones();
-        await CargarIndicadores();
-        await CargarVariables();
-        await CargarUsuarios();
+        await CargarVariablesPorIndicador();
     }
 
-    private async Task CargarRelaciones()
+    private async Task CargarVariablesPorIndicador()
     {
         cargando = true;
 
         try
         {
-            relaciones = await servicioEntidad.ObtenerTodosAsync("proyecto", "variablesporindicador") ?? new();
-            relacionSeleccionada = relaciones.ToDictionary(r => r, r => false);
+            variablesPorIndicador = await servicioEntidad.ObtenerTodosAsync("proyecto", "variablesporindicador") ?? new();
+            variablesPorIndicadorSeleccionadas = variablesPorIndicador.ToDictionary(v => v, v => false);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar relaciones: {ex.Message}");
-            relaciones = new();
+            Console.WriteLine($"Error al cargar variables por indicador: {ex.Message}");
+            variablesPorIndicador = new();
         }
         finally
         {
@@ -247,93 +346,241 @@
         }
     }
 
-    private async Task CargarIndicadores()
-    {
-        indicadores = await servicioEntidad.ObtenerTodosAsync("proyecto", "indicador") ?? new();
-    }
-
-    private async Task CargarVariables()
-    {
-        variables = await servicioEntidad.ObtenerTodosAsync("proyecto", "variable") ?? new();
-    }
-
-    private async Task CargarUsuarios()
-    {
-        usuarios = await servicioEntidad.ObtenerTodosAsync("proyecto", "usuario") ?? new();
-    }
-
-    private void EliminarSeleccionadas()
-    {
-        var seleccionadas = relacionSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
-        foreach (var r in seleccionadas)
-        {
-            relaciones.Remove(r);
-            relacionSeleccionada.Remove(r);
-        }
-        seleccionarTodas = false;
-    }
-
     private string ObtenerValor(Dictionary<string, object> diccionario, string clave)
     {
         return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
     }
-
-    private void AbrirModalCrearRelacion()
+    
+    private string ObtenerFechaFormateada(Dictionary<string, object> diccionario, string clave)
     {
-        mostrarModalCrear = true;
-        idIndicador = 0;
+        if (diccionario.TryGetValue(clave, out var valor) && valor != null)
+        {
+            if (DateTime.TryParse(valor.ToString(), out DateTime fecha))
+            {
+                return fecha.ToString("dd/MM/yyyy HH:mm:ss");
+            }
+        }
+        return "";
+    }
+
+    private void AbrirModalGuardar()
+    {
+        mostrarModalGuardar = true;
         idVariable = 0;
-        emailUsuario = "";
+        idIndicador = 0;
         dato = 0;
+        emailUsuario = "";
         fechaDato = DateTime.Now;
     }
 
-    private void CerrarModalCrear()
+    private void CerrarModalGuardar()
     {
-        mostrarModalCrear = false;
-        idIndicador = 0;
-        idVariable = 0;
-        emailUsuario = "";
-        dato = 0;
-        fechaDato = DateTime.Now;
+        mostrarModalGuardar = false;
     }
 
-    private async Task GuardarRelacion()
+    private async Task GuardarVariablePorIndicador()
     {
         try
         {
-            var parametros = new Dictionary<string, object>
+            var nuevaVariablePorIndicador = new Dictionary<string, object>
             {
-                { "fkidindicador", idIndicador },
                 { "fkidvariable", idVariable },
-                { "fkemailusuario", emailUsuario },
+                { "fkidindicador", idIndicador },
                 { "dato", dato },
+                { "fkemailusuario", emailUsuario },
                 { "fechadato", fechaDato }
             };
 
-            var resultado = await servicioEntidad.InsertarAsync("proyecto", "variablesporindicador", parametros);
+            var resultado = await servicioEntidad.CrearAsync("proyecto", "variablesporindicador", nuevaVariablePorIndicador);
 
-            if (resultado != null)
+            if (resultado)
             {
-                await CargarRelaciones();
-                CerrarModalCrear();
+                await CargarVariablesPorIndicador();
+                CerrarModalGuardar();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al guardar la relación: {ex.Message}");
+            Console.WriteLine($"Error al guardar variable por indicador: {ex.Message}");
         }
     }
 
-    private async Task ConsultarRelacion()
+    private async Task ConsultarVariablePorIndicador()
     {
-        relacionesConsultadas = await servicioEntidad.ObtenerTodosAsync("proyecto", $"variablesporindicador/fkidindicador/{idIndicadorConsulta}") ?? new();
+        try
+        {
+            var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "variablesporindicador", "id", idVariablePorIndicadorConsultar.ToString());
+            
+            if (resultado != null)
+            {
+                variablePorIndicadorConsultada = resultado;
+            }
+            else
+            {
+                variablePorIndicadorConsultada = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar variable por indicador: {ex.Message}");
+            variablePorIndicadorConsultada = null;
+        }
     }
 
     private void CerrarModalConsulta()
     {
         mostrarModalConsulta = false;
-        idIndicadorConsulta = 0;
-        relacionesConsultadas.Clear();
+        idVariablePorIndicadorConsultar = 0;
+        variablePorIndicadorConsultada = null;
+    }
+
+    private void EditarVariablePorIndicador(Dictionary<string, object> variable)
+    {
+        idVariableOriginal = int.Parse(ObtenerValor(variable, "id"));
+        idVariableEditar = int.Parse(ObtenerValor(variable, "fkidvariable"));
+        idIndicadorEditar = int.Parse(ObtenerValor(variable, "fkidindicador"));
+        datoEditar = float.Parse(ObtenerValor(variable, "dato"));
+        emailUsuarioEditar = ObtenerValor(variable, "fkemailusuario");
+        
+        if (DateTime.TryParse(ObtenerValor(variable, "fechadato"), out DateTime fecha))
+        {
+            fechaDatoEditar = fecha;
+        }
+        else
+        {
+            fechaDatoEditar = DateTime.Now;
+        }
+        
+        mostrarModalEditar = true;
+    }
+
+    private void EditarVariablePorIndicadorSeleccionada()
+    {
+        var variableSeleccionada = variablesPorIndicadorSeleccionadas.FirstOrDefault(v => v.Value).Key;
+        if (variableSeleccionada != null)
+        {
+            EditarVariablePorIndicador(variableSeleccionada);
+        }
+    }
+
+    private void CerrarModalEditar()
+    {
+        mostrarModalEditar = false;
+    }
+
+    private async Task ActualizarVariablePorIndicador()
+    {
+        try
+        {
+            var variableActualizada = new Dictionary<string, object>
+            {
+                { "fkidvariable", idVariableEditar },
+                { "fkidindicador", idIndicadorEditar },
+                { "dato", datoEditar },
+                { "fkemailusuario", emailUsuarioEditar },
+                { "fechadato", fechaDatoEditar }
+            };
+
+            var resultado = await servicioEntidad.ActualizarAsync(
+                "proyecto", 
+                "variablesporindicador", 
+                "id", 
+                idVariableOriginal.ToString(), 
+                variableActualizada);
+            
+            if (resultado)
+            {
+                await CargarVariablesPorIndicador();
+                CerrarModalEditar();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al actualizar variable por indicador: {ex.Message}");
+        }
+    }
+
+    private void EliminarVariablePorIndicador(Dictionary<string, object> variable)
+    {
+        variableAEliminar = variable;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        variableAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminarVariablePorIndicador()
+    {
+        if (variableAEliminar != null)
+        {
+            var idVariable = ObtenerValor(variableAEliminar, "id");
+
+            try
+            {
+                var resultado = await servicioEntidad.EliminarAsync(
+                    "proyecto", 
+                    "variablesporindicador", 
+                    "id", 
+                    idVariable);
+
+                if (resultado)
+                {
+                    await CargarVariablesPorIndicador();
+                    CerrarModalEliminar();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar variable por indicador: {ex.Message}");
+            }
+        }
+    }
+
+    private void MostrarModalEliminarMultiples()
+    {
+        if (variablesPorIndicadorSeleccionadas.Any(v => v.Value))
+        {
+            mostrarModalEliminarMultiples = true;
+        }
+    }
+
+    private void CerrarModalEliminarMultiples()
+    {
+        mostrarModalEliminarMultiples = false;
+    }
+
+    private async Task ConfirmarEliminarSeleccionados()
+    {
+        var variablesParaEliminar = variablesPorIndicadorSeleccionadas
+            .Where(v => v.Value)
+            .Select(v => v.Key)
+            .ToList();
+
+        bool todosEliminados = true;
+
+        foreach (var variable in variablesParaEliminar)
+        {
+            var idVariable = ObtenerValor(variable, "id");
+
+            var resultado = await servicioEntidad.EliminarAsync(
+                "proyecto", 
+                "variablesporindicador", 
+                "id", 
+                idVariable);
+
+            if (!resultado)
+            {
+                todosEliminados = false;
+            }
+        }
+
+        if (todosEliminados)
+        {
+            await CargarVariablesPorIndicador();
+            CerrarModalEliminarMultiples();
+        }
     }
 }

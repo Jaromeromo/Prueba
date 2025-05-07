@@ -1,12 +1,9 @@
-@page "/represenvisualporindicador"
+@page "/RepresenVisualPorIndicador"
 @using System.Collections.Generic
 @using System.Threading.Tasks
-@using System.Text.Json
 @using Services
 @inject ServicioEntidad servicioEntidad
 @inject NavigationManager navegacionManager
-
-<PageTitle>Representaciones Visuales por Indicador</PageTitle>
 
 <div class="container-xl">
     <div class="table-responsive">
@@ -17,12 +14,20 @@
                         <h2>Administrar <b>Representaciones Visuales por Indicador</b></h2>
                     </div>
                     <div class="col-sm-6">
-                        <button class="btn btn-danger btn-sm" @onclick="EliminarSeleccionadas">
+                        <button class="btn btn-info btn-sm" @onclick="() => mostrarModalConsulta = true">
+                            <i class="material-icons">&#xE8B6;</i> <span>Consultar</span>
+                        </button>
+
+                        <button class="btn btn-danger btn-sm" @onclick="MostrarModalEliminarMultiples">
                             <i class="material-icons">&#xE15C;</i> <span>Eliminar</span>
                         </button>
 
-                        <button class="btn btn-success btn-sm" @onclick="AbrirModalCrear">
-                            <i class="material-icons">&#xE147;</i> <span>Agregar Nueva Relación</span>
+                        <button class="btn btn-success btn-sm" @onclick="AbrirModalGuardar">
+                            <i class="material-icons">&#xE147;</i> <span>Agregar</span>
+                        </button>
+
+                        <button class="btn btn-info btn-sm" @onclick="() => EditarRelacionSeleccionada()">
+                            <i class="material-icons">&#xE254;</i> <span>Editar Seleccionado</span>
                         </button>
                     </div>
                 </div>
@@ -34,7 +39,7 @@
             }
             else if (relaciones == null || relaciones.Count == 0)
             {
-                <p>No hay relaciones disponibles.</p>
+                <p>No hay relaciones Representación Visual-Indicador disponibles.</p>
             }
             else
             {
@@ -43,14 +48,12 @@
                         <tr>
                             <th>
                                 <span class="custom-checkbox">
-                                    <input type="checkbox" @bind="@seleccionarTodas">
+                                    <input type="checkbox" @bind="@seleccionarTodos">
                                     <label></label>
                                 </span>
                             </th>
                             <th>ID Indicador</th>
-                            <th>Indicador</th>
                             <th>ID Representación Visual</th>
-                            <th>Representación Visual</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -60,18 +63,20 @@
                             <tr>
                                 <td>
                                     <span class="custom-checkbox">
-                                        <input type="checkbox" @bind="@relacionSeleccionada[relacion]">
+                                        <input type="checkbox" @bind="@relacionesSeleccionadas[relacion]">
                                         <label></label>
                                     </span>
                                 </td>
                                 <td>@ObtenerValor(relacion, "fkidindicador")</td>
-                                <td>@ObtenerNombreIndicador(ObtenerValor(relacion, "fkidindicador"))</td>
                                 <td>@ObtenerValor(relacion, "fkidrepresenvisual")</td>
-                                <td>@ObtenerNombreRepresenVisual(ObtenerValor(relacion, "fkidrepresenvisual"))</td>
                                 <td>
-                                    <button class="btn btn-danger btn-sm" @onclick="() => EliminarRelacion(relacion)">
-                                        <i class="material-icons">&#xE872;</i>
-                                    </button>
+                                    <a href="#" class="edit" @onclick="() => EditarRelacion(relacion)" @onclick:preventDefault>
+                                        <i class="material-icons" title="Editar">&#xE254;</i>
+                                    </a>
+                                    <a href="#" class="delete" @onclick="() => EliminarRelacion(relacion)"
+                                        @onclick:preventDefault>
+                                        <i class="material-icons" title="Eliminar">&#xE872;</i>
+                                    </a>
                                 </td>
                             </tr>
                         }
@@ -82,42 +87,159 @@
     </div>
 </div>
 
-@if (mostrarModalCrear)
+@if (mostrarModalGuardar)
+{
+   <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form @onsubmit="GuardarRelacion">
+                <div class="modal-header">
+                    <h4 class="modal-title">Agregar Relación Representación Visual-Indicador</h4>
+                    <button type="button" class="close" @onclick="CerrarModalGuardar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID Indicador</label>
+                        <input type="number" class="form-control" @bind="idIndicador" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Representación Visual</label>
+                        <input type="number" class="form-control" @bind="idRepresenVisual" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalGuardar">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+}
+
+@if (mostrarModalConsulta)
 {
     <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form @onsubmit="GuardarRelacion">
+                <div class="modal-header">
+                    <h4 class="modal-title">Consultar Relación</h4>
+                    <button type="button" class="close" @onclick="CerrarModalConsulta">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID Indicador</label>
+                        <input type="number" class="form-control" @bind="idIndicadorConsultar">
+                    </div>
+                    <div class="form-group">
+                        <label>ID Representación Visual</label>
+                        <input type="number" class="form-control" @bind="idRepresenVisualConsultar">
+                    </div>
+                    <button class="btn btn-primary mt-2" @onclick="ConsultarRelacion">Buscar</button>
+
+                    @if (relacionConsultada != null)
+                    {
+                        <hr>
+                        <div class="form-group">
+                            <label>ID Indicador</label>
+                            <input type="number" class="form-control" value="@idIndicadorConsultar" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>ID Representación Visual</label>
+                            <input type="number" class="form-control" value="@idRepresenVisualConsultar" disabled>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalConsulta">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEditar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ActualizarRelacion">
                     <div class="modal-header">
-                        <h4 class="modal-title">Nueva Relación</h4>
-                        <button type="button" class="close" @onclick="CerrarModalCrear">&times;</button>
+                        <h4 class="modal-title">Editar Relación</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEditar">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Indicador</label>
-                            <select class="form-control" @bind="idIndicador">
-                                <option value="0">Seleccione un indicador</option>
-                                @foreach (var ind in indicadores)
-                                {
-                                    <option value="@ObtenerValor(ind, "id")">@ObtenerValor(ind, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Indicador Original</label>
+                            <input type="number" class="form-control" @bind="idIndicadorOriginal" disabled>
                         </div>
-
                         <div class="form-group">
-                            <label>Representación Visual</label>
-                            <select class="form-control" @bind="idRepresenVisual">
-                                <option value="0">Seleccione una representación visual</option>
-                                @foreach (var rv in represenVisuales)
-                                {
-                                    <option value="@ObtenerValor(rv, "id")">@ObtenerValor(rv, "nombre")</option>
-                                }
-                            </select>
+                            <label>ID Representación Visual Original</label>
+                            <input type="number" class="form-control" @bind="idRepresenVisualOriginal" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Nuevo ID Indicador</label>
+                            <input type="number" class="form-control" @bind="idIndicadorEditar" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nuevo ID Representación Visual</label>
+                            <input type="number" class="form-control" @bind="idRepresenVisualEditar" required>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Guardar</button>
-                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalCrear">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditar">Cancelar</button>
+                        <button type="submit" class="btn btn-info">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarRelacion">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Relación</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminar">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar esta relación Representación Visual-Indicador?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalEliminarMultiples)
+{
+    <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form @onsubmit="ConfirmarEliminarSeleccionados">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Eliminar Relaciones Seleccionadas</h4>
+                        <button type="button" class="close" @onclick="CerrarModalEliminarMultiples">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro de que desea eliminar las relaciones seleccionadas?</p>
+                        <p class="text-warning"><small>Esta acción no se puede deshacer.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            @onclick="CerrarModalEliminarMultiples">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
                     </div>
                 </form>
             </div>
@@ -127,54 +249,57 @@
 
 @code {
     private List<Dictionary<string, object>> relaciones = new();
-    private Dictionary<Dictionary<string, object>, bool> relacionSeleccionada = new();
-    private List<Dictionary<string, object>> indicadores = new();
-    private List<Dictionary<string, object>> represenVisuales = new();
-
+    private Dictionary<Dictionary<string, object>, bool> relacionesSeleccionadas = new();
     private bool cargando = true;
-    private bool mostrarModalCrear = false;
-    private int idIndicador = 0;
-    private int idRepresenVisual = 0;
+    private bool mostrarModalGuardar = false;
+    private bool mostrarModalConsulta = false;
+    private bool mostrarModalEditar = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalEliminarMultiples = false;
+    
+    private Dictionary<string, object> relacionAEliminar;
+    private Dictionary<string, object> relacionConsultada;
 
-    private bool _seleccionarTodas = false;
-    private bool seleccionarTodas
+    private int idIndicador;
+    private int idRepresenVisual;
+    private int idIndicadorConsultar;
+    private int idRepresenVisualConsultar;
+    private int idIndicadorEditar;
+    private int idRepresenVisualEditar;
+    private int idIndicadorOriginal;
+    private int idRepresenVisualOriginal;
+
+    private bool seleccionarTodos
     {
-        get => _seleccionarTodas;
+        get => _seleccionarTodos;
         set
         {
-            _seleccionarTodas = value;
-            foreach (var clave in relacionSeleccionada.Keys.ToList())
+            _seleccionarTodos = value;
+            foreach (var relacion in relaciones)
             {
-                relacionSeleccionada[clave] = _seleccionarTodas;
+                relacionesSeleccionadas[relacion] = _seleccionarTodos;
             }
         }
     }
+    private bool _seleccionarTodos = false;
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarDatos();
+        await CargarRelaciones();
     }
 
-    private async Task CargarDatos()
+    private async Task CargarRelaciones()
     {
         cargando = true;
 
         try
         {
-            // Cargar relaciones
-            var resultadoRelaciones = await servicioEntidad.ObtenerTodosAsync("proyecto", "represenvisualporindicador");
-            relaciones = resultadoRelaciones ?? new();
-            relacionSeleccionada = relaciones.ToDictionary(r => r, r => false);
-
-            // Cargar indicadores
-            indicadores = await servicioEntidad.ObtenerTodosAsync("proyecto", "indicador") ?? new();
-            
-            // Cargar representaciones visuales
-            represenVisuales = await servicioEntidad.ObtenerTodosAsync("proyecto", "represenvisual") ?? new();
+            relaciones = await servicioEntidad.ObtenerTodosAsync("proyecto", "represenvisualporindicador") ?? new();
+            relacionesSeleccionadas = relaciones.ToDictionary(r => r, r => false);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar datos: {ex.Message}");
+            Console.WriteLine($"Error al cargar relaciones: {ex.Message}");
             relaciones = new();
         }
         finally
@@ -188,55 +313,34 @@
         return diccionario.TryGetValue(clave, out var valor) ? valor?.ToString() ?? "" : "";
     }
 
-    private string ObtenerNombreIndicador(string idIndicador)
+    private void AbrirModalGuardar()
     {
-        var indicador = indicadores.FirstOrDefault(i => ObtenerValor(i, "id") == idIndicador);
-        return indicador != null ? ObtenerValor(indicador, "nombre") : "(sin nombre)";
-    }
-
-    private string ObtenerNombreRepresenVisual(string idRepresenVisual)
-    {
-        var rv = represenVisuales.FirstOrDefault(r => ObtenerValor(r, "id") == idRepresenVisual);
-        return rv != null ? ObtenerValor(rv, "nombre") : "(sin nombre)";
-    }
-
-    private void AbrirModalCrear()
-    {
-        mostrarModalCrear = true;
+        mostrarModalGuardar = true;
         idIndicador = 0;
         idRepresenVisual = 0;
     }
 
-    private void CerrarModalCrear()
+    private void CerrarModalGuardar()
     {
-        mostrarModalCrear = false;
-        idIndicador = 0;
-        idRepresenVisual = 0;
+        mostrarModalGuardar = false;
     }
-    
+
     private async Task GuardarRelacion()
     {
-        if (idIndicador == 0 || idRepresenVisual == 0)
-            return;
-
         try
         {
-            var parametros = new Dictionary<string, object>
+            var nuevaRelacion = new Dictionary<string, object>
             {
-                { "p_fkidindicador", idIndicador },
-                { "p_fkidrepresenvisual", idRepresenVisual }
+                { "fkidindicador", idIndicador },
+                { "fkidrepresenvisual", idRepresenVisual }
             };
 
-            var respuesta = await servicioEntidad.EjecutarProcedimientoAsync(
-                "proyecto",
-                "insertar_represenvisual_por_indicador",
-                parametros
-            );
+            var resultado = await servicioEntidad.CrearAsync("proyecto", "represenvisualporindicador", nuevaRelacion);
 
-            if (respuesta != null)
+            if (resultado)
             {
-                await CargarDatos();
-                CerrarModalCrear();
+                await CargarRelaciones();
+                CerrarModalGuardar();
             }
         }
         catch (Exception ex)
@@ -245,48 +349,179 @@
         }
     }
 
-    private async Task EliminarRelacion(Dictionary<string, object> relacion)
+    private async Task ConsultarRelacion()
     {
-        string idIndicador = ObtenerValor(relacion, "fkidindicador");
-        string idRepresenVisual = ObtenerValor(relacion, "fkidrepresenvisual");
-
-        if (string.IsNullOrEmpty(idIndicador) || string.IsNullOrEmpty(idRepresenVisual))
-            return;
-
         try
         {
-            var parametros = new Dictionary<string, object>
+            // Para consultar una relación específica, necesitamos ambas claves primarias
+            var url = $"fkidindicador/{idIndicadorConsultar}/fkidrepresenvisual/{idRepresenVisualConsultar}";
+            var resultado = await servicioEntidad.ObtenerPorClaveAsync("proyecto", "represenvisualporindicador", "fkidindicador", idIndicadorConsultar.ToString());
+            
+            if (resultado != null && ObtenerValor(resultado, "fkidrepresenvisual") == idRepresenVisualConsultar.ToString())
             {
-                { "p_fkidindicador", idIndicador },
-                { "p_fkidrepresenvisual", idRepresenVisual }
-            };
-
-            var respuesta = await servicioEntidad.EjecutarProcedimientoAsync(
-                "proyecto",
-                "E",
-                parametros
-            );
-
-            if (respuesta != null)
+                relacionConsultada = resultado;
+            }
+            else
             {
-                await CargarDatos();
+                relacionConsultada = null;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al eliminar relación: {ex.Message}");
+            Console.WriteLine($"Error al consultar relación: {ex.Message}");
+            relacionConsultada = null;
         }
     }
 
-    private async Task EliminarSeleccionadas()
+    private void CerrarModalConsulta()
     {
-        var seleccionadas = relacionSeleccionada.Where(x => x.Value).Select(x => x.Key).ToList();
+        mostrarModalConsulta = false;
+        idIndicadorConsultar = 0;
+        idRepresenVisualConsultar = 0;
+        relacionConsultada = null;
+    }
+
+    private void EditarRelacion(Dictionary<string, object> relacion)
+    {
+        idIndicadorOriginal = int.Parse(ObtenerValor(relacion, "fkidindicador"));
+        idRepresenVisualOriginal = int.Parse(ObtenerValor(relacion, "fkidrepresenvisual"));
         
-        foreach (var relacion in seleccionadas)
+        idIndicadorEditar = idIndicadorOriginal;
+        idRepresenVisualEditar = idRepresenVisualOriginal;
+        
+        mostrarModalEditar = true;
+    }
+
+    private void EditarRelacionSeleccionada()
+    {
+        var relacionSeleccionada = relacionesSeleccionadas.FirstOrDefault(r => r.Value).Key;
+        if (relacionSeleccionada != null)
         {
-            await EliminarRelacion(relacion);
+            EditarRelacion(relacionSeleccionada);
         }
-        
-        seleccionarTodas = false;
+    }
+
+    private void CerrarModalEditar()
+    {
+        mostrarModalEditar = false;
+    }
+
+    private async Task ActualizarRelacion()
+    {
+        try
+        {
+            // Para actualizar una relación, primero debemos eliminar la existente y luego crear una nueva
+            var eliminado = await servicioEntidad.EliminarAsync(
+                "proyecto", 
+                "represenvisualporindicador", 
+                "fkidindicador", 
+                idIndicadorOriginal.ToString());
+
+            if (eliminado)
+            {
+                var nuevaRelacion = new Dictionary<string, object>
+                {
+                    { "fkidindicador", idIndicadorEditar },
+                    { "fkidrepresenvisual", idRepresenVisualEditar }
+                };
+
+                var creado = await servicioEntidad.CrearAsync("proyecto", "represenvisualporindicador", nuevaRelacion);
+                
+                if (creado)
+                {
+                    await CargarRelaciones();
+                    CerrarModalEditar();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al actualizar relación: {ex.Message}");
+        }
+    }
+
+    private void EliminarRelacion(Dictionary<string, object> relacion)
+    {
+        relacionAEliminar = relacion;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        relacionAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminarRelacion()
+    {
+        if (relacionAEliminar != null)
+        {
+            var idIndicador = ObtenerValor(relacionAEliminar, "fkidindicador");
+            var idRepresenVisual = ObtenerValor(relacionAEliminar, "fkidrepresenvisual");
+
+            try
+            {
+                var resultado = await servicioEntidad.EliminarAsync(
+                    "proyecto", 
+                    "represenvisualporindicador", 
+                    "fkidindicador", 
+                    idIndicador);
+
+                if (resultado)
+                {
+                    await CargarRelaciones();
+                    CerrarModalEliminar();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar relación: {ex.Message}");
+            }
+        }
+    }
+
+    private void MostrarModalEliminarMultiples()
+    {
+        if (relacionesSeleccionadas.Any(r => r.Value))
+        {
+            mostrarModalEliminarMultiples = true;
+        }
+    }
+
+    private void CerrarModalEliminarMultiples()
+    {
+        mostrarModalEliminarMultiples = false;
+    }
+
+    private async Task ConfirmarEliminarSeleccionados()
+    {
+        var relacionesParaEliminar = relacionesSeleccionadas
+            .Where(r => r.Value)
+            .Select(r => r.Key)
+            .ToList();
+
+        bool todosEliminados = true;
+
+        foreach (var relacion in relacionesParaEliminar)
+        {
+            var idIndicador = ObtenerValor(relacion, "fkidindicador");
+
+            var resultado = await servicioEntidad.EliminarAsync(
+                "proyecto", 
+                "represenvisualporindicador", 
+                "fkidindicador", 
+                idIndicador);
+
+            if (!resultado)
+            {
+                todosEliminados = false;
+            }
+        }
+
+        if (todosEliminados)
+        {
+            await CargarRelaciones();
+            CerrarModalEliminarMultiples();
+        }
     }
 }
